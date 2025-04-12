@@ -149,7 +149,7 @@ def _find_matching_window(
 @mcp.tool()
 def tool_version() -> str:
     """Get the version of the tool."""
-    return "0.1.8"
+    return "0.2.0"
 
 
 @mcp.tool()
