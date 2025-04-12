@@ -351,7 +351,7 @@ def get_ocr_from_screenshot(
         dim = (width, height)
         resized_img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
         # save resized image to pwd
-        cv2.imwrite("resized_img.png", resized_img)
+        # cv2.imwrite("resized_img.png", resized_img)
         engine = RapidOCR()
         vis = VisRes()
 
