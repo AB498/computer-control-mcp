@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "computer-control-mcp"
-version = "0.1.0"
+version = "0.1.8"
 description = "Computer control capabilities using PyAutoGUI through a Model Context Protocol (MCP) server"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -24,9 +24,11 @@ classifiers = [
 dependencies = [
     "pyautogui",
     "mcp[cli]",
-    "watchdog",
     "pillow",
-    "pygetwindow"
+    "pygetwindow",
+    "fuzzywuzzy",
+    "rapidocr_onnxruntime",
+    "opencv-python"
 ]
 
 [project.urls]
@@ -39,7 +41,7 @@ computer-control-mcp = "computer_control_mcp.cli:main"
 computer-control-mcp-server = "computer_control_mcp.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/computer_control_mcp"]
+packages = ["computer_control_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -49,4 +51,5 @@ python_functions = "test_*"
 
 [tool.hatch.build]
 sources = ["src"]
+packages = ["src/computer_control_mcp"]
 

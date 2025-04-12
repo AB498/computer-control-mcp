@@ -1,0 +1,46 @@
+name: Test Package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test package build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      
+      - name: Set up Python
+        run: uv python install
+      
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      
+      - name: Run tests
+        run: uv run pytest tests
+      
+      - name: Build package
+        run: uv build --no-sources
+      
+      - name: Verify package
+        run: |
+          # Create a temporary directory for testing the built package
+          mkdir -p /tmp/test-install
+          cd /tmp/test-install
+          
+          # Install the built package
+          uv pip install $GITHUB_WORKSPACE/dist/*.whl
+          
+          # Verify the package can be imported
+          python -c "import computer_control_mcp; print(computer_control_mcp.__version__)"

@@ -1,0 +1,33 @@
+name: Publish Package (Trusted Publisher)
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Build and publish package
+    runs-on: ubuntu-latest
+    # Required for PyPI trusted publishing
+    permissions:
+      id-token: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      
+      - name: Set up Python
+        run: uv python install
+      
+      - name: Build package
+        run: uv build --no-sources
+      
+      - name: Publish package
+        # No token needed when using trusted publisher
+        run: uv publish

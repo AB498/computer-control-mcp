@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Computer Control MCP - Core Implementation
-A compact ModelContextProtocol server that provides computer control capabilities
-using PyAutoGUI for mouse/keyboard control.
-"""
-
 import shutil
 import sys
 import os
@@ -23,16 +16,8 @@ from mcp.server.fastmcp import FastMCP, Image
 import pygetwindow as gw
 from fuzzywuzzy import fuzz, process
 
-from rapidocr import RapidOCR
 import cv2
 from rapidocr_onnxruntime import RapidOCR, VisRes
-
-
-DEBUG = True  # Set to False in production
-RELOAD_ENABLED = True  # Set to False to disable auto-reload
-
-# Create FastMCP server instance at module level
-mcp = FastMCP("ComputerControlMCP", version="1.0.0")
 
 
 def log(message: str) -> None:
@@ -143,50 +128,6 @@ def _find_matching_window(
     return None
 
 
-# --- MCP Function Handlers ---
-
-
-@mcp.tool()
-def tool_version() -> str:
-    """Get the version of the tool."""
-    return "0.1.8"
-
-
-@mcp.tool()
-def click_screen(x: int, y: int) -> str:
-    """Click at the specified screen coordinates."""
-    try:
-        pyautogui.click(x=x, y=y)
-        return f"Successfully clicked at coordinates ({x}, {y})"
-    except Exception as e:
-        return f"Error clicking at coordinates ({x}, {y}): {str(e)}"
-
-
-@mcp.tool()
-def get_screen_size() -> Dict[str, Any]:
-    """Get the current screen resolution."""
-    try:
-        width, height = pyautogui.size()
-        return {
-            "width": width,
-            "height": height,
-            "message": f"Screen size: {width}x{height}",
-        }
-    except Exception as e:
-        return {"error": str(e), "message": f"Error getting screen size: {str(e)}"}
-
-
-@mcp.tool()
-def type_text(text: str) -> str:
-    """Type the specified text at the current cursor position."""
-    try:
-        pyautogui.typewrite(text)
-        return f"Successfully typed text: {text}"
-    except Exception as e:
-        return f"Error typing text: {str(e)}"
-
-
-@mcp.tool()
 def take_screenshot(
     title_pattern: str = None,
     use_regex: bool = False,
@@ -220,7 +161,7 @@ def take_screenshot(
                     }
                 )
 
-        log(f"Found {len(windows)} windows")
+        print(f"Found {len(windows)} windows")
         window = _find_matching_window(windows, title_pattern, use_regex, threshold)
         window = window["window_obj"] if window else None
 
@@ -229,10 +170,10 @@ def take_screenshot(
 
         # Take the screenshot
         if not window:
-            log("No matching window found, taking screenshot of entire screen")
+            print("No matching window found, taking screenshot of entire screen")
             screenshot = pyautogui.screenshot()
         else:
-            log(f"Taking screenshot of window: {window.title}")
+            print(f"Taking screenshot of window: {window.title}")
             # Activate the window and wait for it to be fully in focus
             window.activate()
             pyautogui.sleep(0.5)  # Wait for 0.5 seconds to ensure window is active
@@ -257,17 +198,16 @@ def take_screenshot(
 
         # Copy from temp to downloads
         if save_to_downloads:
-            log("Copying screenshot from temp to downloads")
+            print("Copying screenshot from temp to downloads")
             shutil.copy(filepath, get_downloads_dir())
 
         return image  # MCP Image object
 
     except Exception as e:
-        log(f"Error taking screenshot: {str(e)}")
+        print(f"Error taking screenshot: {str(e)}")
         return f"Error taking screenshot: {str(e)}"
 
 
-@mcp.tool()
 def get_screenshot_with_ocr(
     title_pattern: str = None,
     use_regex: bool = False,
@@ -359,8 +299,8 @@ def get_screenshot_with_ocr(
         boxes, txts, scores = list(zip(*result))
 
         zipped_results = list(zip(boxes, txts, scores))
-        
-        return [image, *zipped_results]
+        import json
+        return json.dumps([*zipped_results])
 
     except Exception as e:
         log(f"Error getting UI elements: {str(e)}")
@@ -370,156 +310,4 @@ def get_screenshot_with_ocr(
         log(f"Stack trace:\n{stack_trace}")
         return f"Error getting UI elements: {str(e)}\nStack trace:\n{stack_trace}"
 
-
-@mcp.tool()
-def move_mouse(x: int, y: int) -> str:
-    """Move the mouse to the specified screen coordinates."""
-    try:
-        pyautogui.moveTo(x=x, y=y)
-        return f"Successfully moved mouse to coordinates ({x}, {y})"
-    except Exception as e:
-        return f"Error moving mouse to coordinates ({x}, {y}): {str(e)}"
-
-
-@mcp.tool()
-async def drag_mouse(
-    from_x: int, from_y: int, to_x: int, to_y: int, duration: float = 0.5
-) -> str:
-    """
-    Drag the mouse from one position to another.
-
-    Args:
-        from_x: Starting X coordinate
-        from_y: Starting Y coordinate
-        to_x: Ending X coordinate
-        to_y: Ending Y coordinate
-        duration: Duration of the drag in seconds (default: 0.5)
-
-    Returns:
-        Success or error message
-    """
-    try:
-        # First move to the starting position
-        pyautogui.moveTo(x=from_x, y=from_y)
-        # Then drag to the destination
-        log("starting drag")
-        await asyncio.to_thread(pyautogui.dragTo, x=to_x, y=to_y, duration=duration)
-        log("done drag")
-        return f"Successfully dragged from ({from_x}, {from_y}) to ({to_x}, {to_y})"
-    except Exception as e:
-        return f"Error dragging from ({from_x}, {from_y}) to ({to_x}, {to_y}): {str(e)}"
-
-
-@mcp.tool()
-def press_key(key: str) -> str:
-    """Press the specified keyboard key."""
-    try:
-        pyautogui.press(key)
-        return f"Successfully pressed key: {key}"
-    except Exception as e:
-        return f"Error pressing key {key}: {str(e)}"
-
-
-@mcp.tool()
-def list_windows() -> List[Dict[str, Any]]:
-    """List all open windows on the system."""
-    try:
-        windows = gw.getAllWindows()
-        result = []
-        for window in windows:
-            if window.title:  # Only include windows with titles
-                result.append(
-                    {
-                        "title": window.title,
-                        "left": window.left,
-                        "top": window.top,
-                        "width": window.width,
-                        "height": window.height,
-                        "is_active": window.isActive,
-                        "is_visible": window.visible,
-                        "is_minimized": window.isMinimized,
-                        "is_maximized": window.isMaximized,
-                        "screenshot": pyautogui.screenshot(
-                            region=(
-                                window.left,
-                                window.top,
-                                window.width,
-                                window.height,
-                            )
-                        ),
-                    }
-                )
-        return result
-    except Exception as e:
-        log(f"Error listing windows: {str(e)}")
-        return [{"error": str(e)}]
-
-
-@mcp.tool()
-def activate_window(
-    title_pattern: str, use_regex: bool = False, threshold: int = 60
-) -> str:
-    """
-    Activate a window (bring it to the foreground) by matching its title.
-
-    Args:
-        title_pattern: Pattern to match window title
-        use_regex: If True, treat the pattern as a regex, otherwise use fuzzy matching
-        threshold: Minimum score (0-100) required for a fuzzy match
-
-    Returns:
-        Success or error message
-    """
-    try:
-        # Get all windows
-        all_windows = gw.getAllWindows()
-
-        # Convert to list of dictionaries for _find_matching_window
-        windows = []
-        for window in all_windows:
-            if window.title:  # Only include windows with titles
-                windows.append(
-                    {
-                        "title": window.title,
-                        "window_obj": window,  # Store the actual window object
-                    }
-                )
-
-        # Find matching window using our improved function
-        matched_window_dict = _find_matching_window(
-            windows, title_pattern, use_regex, threshold
-        )
-
-        if not matched_window_dict:
-            log(f"No window found matching pattern: {title_pattern}")
-            return f"Error: No window found matching pattern: {title_pattern}"
-
-        # Get the actual window object
-        matched_window = matched_window_dict["window_obj"]
-
-        # Activate the window
-        matched_window.activate()
-
-        return f"Successfully activated window: '{matched_window.title}'"
-    except Exception as e:
-        log(f"Error activating window: {str(e)}")
-        return f"Error activating window: {str(e)}"
-
-
-def main():
-    """Main entry point for the MCP server."""
-    pyautogui.FAILSAFE = True
-
-    try:
-        # Run the server
-        mcp.run()
-        log("Server Started")
-
-    except KeyboardInterrupt:
-        log("Server shutting down...")
-    except Exception as e:
-        log(f"Error: {str(e)}")
-
-
-if __name__ == "__main__":
-    main()
+print(get_screenshot_with_ocr("chrome"))

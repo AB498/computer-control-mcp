@@ -7,11 +7,6 @@ wheels/
 *.egg-info/
 *.egg
 
-# Virtual environments
-.venv/
-venv/
-ENV/
-
 # Distribution / packaging
 .Python
 develop-eggs/

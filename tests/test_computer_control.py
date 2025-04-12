@@ -9,8 +9,9 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 import asyncio
+import os
+import ast
 from computer_control_mcp.core import mcp
-
 
 # Helper function to print request/response JSON, skipping non-serializable properties
 def print_json_data(name, request_data=None, response_data=None):
@@ -130,3 +131,31 @@ async def test_list_windows():
     assert any(window.get("title") == "Test Window" for window in window_data)
 
     test_window.destroy()
+
+# Test screenshot with downloads
+@pytest.mark.asyncio
+async def test_take_screenshot():
+    # Take a screenshot of the whole screen and save to downloads
+    results = await mcp.call_tool("take_screenshot", {'save_to_downloads': True, 'mode': 'whole_screen'})
+
+    for result in results:
+        # Check if file_path is in the result
+        if hasattr(result, 'text'):
+            try:
+                result_dict = json.loads(result.text)
+                print(f"Screenshot result: {result_dict['title']}", file=sys.stderr)
+                assert 'file_path' in result_dict, "file_path should be in the result"
+                file_path = result_dict['file_path']
+
+                # Check if the file exists
+                assert os.path.exists(file_path), f"File {file_path} should exist"
+                print(f"Screenshot saved to: {file_path}", file=sys.stderr)
+
+                # Clean up - remove the file
+                os.remove(file_path)
+                print(f"Removed test file: {file_path}", file=sys.stderr)
+            except (ValueError, SyntaxError, AttributeError) as e:
+                print(f"Error processing result: {e}", file=sys.stderr)
+                assert False, f"Error processing result: {e}"
+
+    assert True, "Successfully tested screenshot with downloads"

@@ -3,22 +3,19 @@ Entry point for running the Computer Control MCP as a module.
 
 This module serves as the main entry point for the package.
 When executed directly (e.g., with `python -m computer_control_mcp`),
-it will run the MCP server.
-
-When used with `uvx computer-control-mcp`, it will also run the server.
+it will run the CLI interface.
 
 For CLI functionality, use:
     computer-control-mcp <command>
-    uvx computer-control-mcp <command>
+    python -m computer_control_mcp <command>
 """
 
-from computer_control_mcp.core import main as run_server
+from computer_control_mcp.cli import main as cli_main
 
 def main():
     """Main entry point for the package."""
-    # Always run the server when the module is executed directly
-    print("Starting Computer Control MCP server...")
-    run_server()
+    # Run the CLI when the module is executed directly
+    cli_main()
 
 if __name__ == "__main__":
     main()

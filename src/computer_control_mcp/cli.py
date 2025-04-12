@@ -32,7 +32,8 @@ def parse_args():
                                   default="whole_screen", help="Screenshot mode")
     screenshot_parser.add_argument("--title", help="Window title pattern (for single_window mode)")
     screenshot_parser.add_argument("--regex", action="store_true", help="Use regex for title matching")
-    screenshot_parser.add_argument("--output", help="Output file path")
+    screenshot_parser.add_argument("--output", help="Output file path (if not provided, saves to downloads directory)")
+    screenshot_parser.add_argument("--no-save", action="store_true", help="Don't save images to downloads directory")
 
     # List windows command
     subparsers.add_parser("list-windows", help="List all open windows")
@@ -71,16 +72,28 @@ def main():
         result = asyncio.run(mcp.call_tool("take_screenshot", {
             "mode": args.mode,
             "title_pattern": args.title,
-            "use_regex": args.regex
+            "use_regex": args.regex,
+            "save_to_downloads": not args.no_save
         }))
 
         if args.output:
-            # Save the screenshot to a file
+            # Save the screenshot to a specific file path provided by user
             with open(args.output, "wb") as f:
                 f.write(result.image.data)
             print(f"Screenshot saved to {args.output}")
+        elif hasattr(result, 'file_path'):
+            # If image was saved to downloads, show the path
+            print(f"Screenshot saved to {result.file_path}")
         else:
             print("Screenshot taken successfully")
+
+        # If we have multiple results (all_windows mode)
+        if args.mode == "all_windows" and isinstance(result, list):
+            print("\nAll screenshots:")
+            for i, item in enumerate(result):
+                if hasattr(item, 'file_path'):
+                    window_title = item.window_info.title if hasattr(item, 'window_info') else f"Window {i+1}"
+                    print(f"{i+1}. {window_title}: {item.file_path}")
 
     elif args.command == "list-windows":
         # Call the tool using the call_tool method
@@ -107,8 +120,9 @@ def main():
         run_gui()
 
     else:
-        print("Error: No command specified")
-        sys.exit(1)
+        # When no command is specified, run the server by default
+        print("No command specified. Starting the MCP server...")
+        run_server()
 
 if __name__ == "__main__":
     main()
