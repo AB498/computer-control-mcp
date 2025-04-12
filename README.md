@@ -9,7 +9,7 @@ MCP server that provides computer control capabilities, like mouse, keyboard, OC
   "mcpServers": {
     "computer-control-mcp": {
       "command": "uvx",
-      "args": ["computer-control-mcp"]
+      "args": ["computer-control-mcp@latest"]
     }
   }
 }
