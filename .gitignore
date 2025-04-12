@@ -45,3 +45,5 @@ coverage.xml
 # OS specific files
 .DS_Store
 Thumbs.db
+
+.venv/

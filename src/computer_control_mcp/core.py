@@ -149,7 +149,7 @@ def _find_matching_window(
 @mcp.tool()
 def tool_version() -> str:
     """Get the version of the tool."""
-    return "0.2.2"
+    return "0.2.5"
 
 
 @mcp.tool()
@@ -513,7 +513,6 @@ def main():
     try:
         # Run the server
         mcp.run()
-        log("Server Started")
 
     except KeyboardInterrupt:
         log("Server shutting down...")
