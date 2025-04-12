@@ -1,6 +1,6 @@
 # Computer Control MCP
 
-A Python package that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI through a Model Context Protocol (MCP) server. With Zero External Dependencies.
+MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. With Zero External Dependencies.
 
 ## Quick Usage (MCP Setup Using `uvx`)
 
