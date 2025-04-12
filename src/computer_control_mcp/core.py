@@ -149,7 +149,7 @@ def _find_matching_window(
 @mcp.tool()
 def tool_version() -> str:
     """Get the version of the tool."""
-    return "0.2.0"
+    return "0.2.1"
 
 
 @mcp.tool()
@@ -268,24 +268,24 @@ def take_screenshot(
 
 
 @mcp.tool()
-def get_screenshot_with_ocr(
+def get_ocr_from_screenshot(
     title_pattern: str = None,
     use_regex: bool = False,
     threshold: int = 60,
     scale_percent: int = 100,
-) -> any:
+) -> List[Tuple[List[List[int]], str, float]]:
     """
-    Get OCR text from the specified title pattern and save them to the downloads directory with absolute paths returned.
-    If no title pattern is provided, get all Text on the screen.
+    Get OCR text with absolute coordinates (returned after adding the window offset from true (0, 0) of screen to the OCR coordinates, so clicking is on-point. Recommended to click in the middle of OCR Box) and confidence from window with the specified title pattern.
+    If no title pattern is provided, get all text on the screen.
 
     Args:
         title_pattern: Pattern to match window title, if None, get all UI elements on the screen
         use_regex: If True, treat the pattern as a regex, otherwise best match with fuzzy matching
-        save_to_downloads: If True, save the screenshot to the downloads directory and return the absolute path
         threshold: Minimum score (0-100) required for a fuzzy match
+        scale_percent: Percentage to scale the image down before processing, you wont need this most of the time unless your pc is extremely old or slow
 
     Returns:
-        List of UI elements as MCP Image objects
+        List of UI elements as [[4 corners of box], text, confidence]
     """
     try:
 
@@ -357,10 +357,10 @@ def get_screenshot_with_ocr(
 
         result, elapse_list = engine(resized_img)
         boxes, txts, scores = list(zip(*result))
-
+        boxes = [[[x + window.left, y + window.top] for x, y in box] for box in boxes]
         zipped_results = list(zip(boxes, txts, scores))
-        
-        return [image, *zipped_results]
+
+        return zipped_results
 
     except Exception as e:
         log(f"Error getting UI elements: {str(e)}")

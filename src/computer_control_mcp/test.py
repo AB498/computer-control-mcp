@@ -208,7 +208,7 @@ def take_screenshot(
         return f"Error taking screenshot: {str(e)}"
 
 
-def get_screenshot_with_ocr(
+def get_ocr_from_screenshot(
     title_pattern: str = None,
     use_regex: bool = False,
     threshold: int = 60,
@@ -297,10 +297,10 @@ def get_screenshot_with_ocr(
 
         result, elapse_list = engine(resized_img)
         boxes, txts, scores = list(zip(*result))
-
+        boxes = [[[x + window.left, y + window.top] for x, y in box] for box in boxes]
         zipped_results = list(zip(boxes, txts, scores))
-        import json
-        return json.dumps([*zipped_results])
+
+        return zipped_results
 
     except Exception as e:
         log(f"Error getting UI elements: {str(e)}")
@@ -310,4 +310,7 @@ def get_screenshot_with_ocr(
         log(f"Stack trace:\n{stack_trace}")
         return f"Error getting UI elements: {str(e)}\nStack trace:\n{stack_trace}"
 
-print(get_screenshot_with_ocr("chrome"))
+
+import json
+
+print(json.dumps(get_ocr_from_screenshot("chrome")))
