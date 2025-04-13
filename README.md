@@ -1,6 +1,6 @@
 # Computer Control MCP
 
-MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. With Zero External Dependencies.
+MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. Similar to 'computer-use' by Anthropic. With Zero External Dependencies.
 
 * ***Only tested on Windows. Contributions are welcome.***
 
