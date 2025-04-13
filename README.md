@@ -1,10 +1,16 @@
 # Computer Control MCP
 
-MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. Similar to 'computer-use' by Anthropic. With Zero External Dependencies.
+### MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. Similar to 'computer-use' by Anthropic. With Zero External Dependencies.
 
-* ***Only tested on Windows. Contributions are welcome.***
+* *Only tested on Windows. Contributions are welcome.*
 
-## Example
+<div style="text-align:center;font-family: monospace; display: flex; align-items: center; justify-content: center; width: 100%; gap: 10px">
+        <a href="https://discord.gg/dquNGYwfnW"><img src="https://img.shields.io/discord/1095854826786668545" alt="Discord"></a>
+        <a href="https://img.shields.io/badge/License-MIT-yellow.svg"><img
+                src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+</div>
+
+---
 
 ![MCP Computer Control Demo](demonstration.gif)
 
@@ -57,14 +63,6 @@ computer-control-mcp # instead of uvx computer-control-mcp, so you can use the l
 - `list_windows()`: List all open windows
 - `activate_window(title_pattern: str, use_regex: bool = False, threshold: int = 60)`: Bring specified window to foreground
 
-### Running as a Module
-
-You can run the package as a module:
-
-```bash
-python -m computer_control_mcp
-```
-
 ## Development
 
 ### Setting up the Development Environment
@@ -92,6 +90,7 @@ See the [API Reference](docs/api.md) for detailed information about the availabl
 
 MIT
 
-## Contact
+## For more information or help
 
-For any questions or suggestions, you can open an issue on GitHub or email author at abcd49800@gmail.com.
+- [Email (abcd49800@gmail.com)](mailto:abcd49800@gmail.com)
+- [Discord (CodePlayground)](https://discord.gg/dquNGYwfnW)
