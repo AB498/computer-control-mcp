@@ -149,7 +149,7 @@ def _find_matching_window(
 @mcp.tool()
 def tool_version() -> str:
     """Get the version of the tool."""
-    return "0.2.5"
+    return "0.2.7"
 
 
 @mcp.tool()
@@ -191,22 +191,27 @@ def take_screenshot(
     title_pattern: str = None,
     use_regex: bool = False,
     threshold: int = 60,
+    with_ocr_text_and_coords: bool = False,
+    scale_percent_for_ocr: int = 100,
     save_to_downloads: bool = False,
-) -> Image:
+) -> Image | List[Tuple[List[List[int]], str, float]]:
     """
-    Take screenshots based on the specified title pattern and save them to the downloads directory with absolute paths returned.
-    If no title pattern is provided, take screenshot of entire screen.
+    Get screenshot and  OCR text with absolute coordinates (returned after adding the window offset from true (0, 0) of screen to the OCR coordinates, so clicking is on-point. Recommended to click in the middle of OCR Box) and confidence from window with the specified title pattern.
+    If no title pattern is provided, get screenshot of entire screen and all text on the screen.
 
     Args:
         title_pattern: Pattern to match window title, if None, take screenshot of entire screen
         use_regex: If True, treat the pattern as a regex, otherwise best match with fuzzy matching
-        save_to_downloads: If True, save the screenshot to the downloads directory and return the absolute path
         threshold: Minimum score (0-100) required for a fuzzy match
+        with_ocr_text_and_coords: If True, get OCR text with absolute coordinates from the screenshot
+        scale_percent_for_ocr: Percentage to scale the image down before processing, you wont need this most of the time unless your pc is extremely old or slow
+        save_to_downloads: If True, save the screenshot to the downloads directory and return the absolute path
 
     Returns:
-        Always returns a single screenshot as MCP Image object, content type image not supported means preview isnt supported but Image object is there.
+        Returns a single screenshot as MCP Image object, if with_ocr_text_and_coords is True, returns a MCP Image object followed by list of UI elements as [[4 corners of box], text, confidence], "content type image not supported" means preview isnt supported but Image object is there.
     """
     try:
+
         all_windows = gw.getAllWindows()
 
         # Convert to list of dictionaries for _find_matching_window
@@ -225,13 +230,13 @@ def take_screenshot(
         window = window["window_obj"] if window else None
 
         # Store the currently active window
-        current_active_window = gw.getActiveWindow()
 
         # Take the screenshot
         if not window:
             log("No matching window found, taking screenshot of entire screen")
             screenshot = pyautogui.screenshot()
         else:
+            current_active_window = gw.getActiveWindow()
             log(f"Taking screenshot of window: {window.title}")
             # Activate the window and wait for it to be fully in focus
             window.activate()
@@ -241,8 +246,11 @@ def take_screenshot(
             )
             # Restore the previously active window
             if current_active_window:
-                current_active_window.activate()
-                pyautogui.sleep(0.2)  # Wait a bit to ensure previous window is restored
+                try:
+                    current_active_window.activate()
+                    pyautogui.sleep(0.2)  # Wait a bit to ensure previous window is restored
+                except Exception as e:
+                    log(f"Error restoring previous window: {str(e)}")
 
         # Create temp directory
         temp_dir = Path(tempfile.mkdtemp())
@@ -254,91 +262,12 @@ def take_screenshot(
 
         # Create Image object from filepath
         image = Image(filepath)
+
+        if not with_ocr_text_and_coords:
+            return image  # MCP Image object
 
         # Copy from temp to downloads
         if save_to_downloads:
-            log("Copying screenshot from temp to downloads")
-            shutil.copy(filepath, get_downloads_dir())
-
-        return image  # MCP Image object
-
-    except Exception as e:
-        log(f"Error taking screenshot: {str(e)}")
-        return f"Error taking screenshot: {str(e)}"
-
-
-@mcp.tool()
-def get_ocr_from_screenshot(
-    title_pattern: str = None,
-    use_regex: bool = False,
-    threshold: int = 60,
-    scale_percent: int = 100,
-) -> List[Tuple[List[List[int]], str, float]]:
-    """
-    Get OCR text with absolute coordinates (returned after adding the window offset from true (0, 0) of screen to the OCR coordinates, so clicking is on-point. Recommended to click in the middle of OCR Box) and confidence from window with the specified title pattern.
-    If no title pattern is provided, get all text on the screen.
-
-    Args:
-        title_pattern: Pattern to match window title, if None, get all UI elements on the screen
-        use_regex: If True, treat the pattern as a regex, otherwise best match with fuzzy matching
-        threshold: Minimum score (0-100) required for a fuzzy match
-        scale_percent: Percentage to scale the image down before processing, you wont need this most of the time unless your pc is extremely old or slow
-
-    Returns:
-        List of UI elements as [[4 corners of box], text, confidence]
-    """
-    try:
-
-        all_windows = gw.getAllWindows()
-
-        # Convert to list of dictionaries for _find_matching_window
-        windows = []
-        for window in all_windows:
-            if window.title:  # Only include windows with titles
-                windows.append(
-                    {
-                        "title": window.title,
-                        "window_obj": window,  # Store the actual window object
-                    }
-                )
-
-        log(f"Found {len(windows)} windows")
-        window = _find_matching_window(windows, title_pattern, use_regex, threshold)
-        window = window["window_obj"] if window else None
-
-        # Store the currently active window
-        current_active_window = gw.getActiveWindow()
-
-        # Take the screenshot
-        if not window:
-            log("No matching window found, taking screenshot of entire screen")
-            screenshot = pyautogui.screenshot()
-        else:
-            log(f"Taking screenshot of window: {window.title}")
-            # Activate the window and wait for it to be fully in focus
-            window.activate()
-            pyautogui.sleep(0.5)  # Wait for 0.5 seconds to ensure window is active
-            screenshot = pyautogui.screenshot(
-                region=(window.left, window.top, window.width, window.height)
-            )
-            # Restore the previously active window
-            if current_active_window:
-                current_active_window.activate()
-                pyautogui.sleep(0.2)  # Wait a bit to ensure previous window is restored
-
-        # Create temp directory
-        temp_dir = Path(tempfile.mkdtemp())
-
-        # Save screenshot and get filepath
-        filepath, _ = save_image_to_downloads(
-            screenshot, prefix="screenshot", directory=temp_dir
-        )
-
-        # Create Image object from filepath
-        image = Image(filepath)
-
-        # Copy from temp to downloads
-        if False:
             log("Copying screenshot from temp to downloads")
             shutil.copy(filepath, get_downloads_dir())
 
@@ -346,8 +275,8 @@ def get_ocr_from_screenshot(
         img = cv2.imread(image_path)
 
         # Lower down resolution before processing
-        width = int(img.shape[1] * scale_percent / 100)
-        height = int(img.shape[0] * scale_percent / 100)
+        width = int(img.shape[1] * scale_percent_for_ocr / 100)
+        height = int(img.shape[0] * scale_percent_for_ocr / 100)
         dim = (width, height)
         resized_img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
         # save resized image to pwd
@@ -357,18 +286,21 @@ def get_ocr_from_screenshot(
 
         result, elapse_list = engine(resized_img)
         boxes, txts, scores = list(zip(*result))
-        boxes = [[[x + window.left, y + window.top] for x, y in box] for box in boxes]
+        boxes = [
+            [[x + window.left, y + window.top] if window else [x, y] for x, y in box]
+            for box in boxes
+        ]
         zipped_results = list(zip(boxes, txts, scores))
 
-        return zipped_results
+        return [image, *zipped_results]
 
     except Exception as e:
-        log(f"Error getting UI elements: {str(e)}")
+        log(f"Error in screenshot or getting UI elements: {str(e)}")
         import traceback
 
         stack_trace = traceback.format_exc()
         log(f"Stack trace:\n{stack_trace}")
-        return f"Error getting UI elements: {str(e)}\nStack trace:\n{stack_trace}"
+        return f"Error in screenshot or getting UI elements: {str(e)}\nStack trace:\n{stack_trace}"
 
 
 @mcp.tool()

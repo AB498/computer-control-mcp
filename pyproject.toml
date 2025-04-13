@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "computer-control-mcp"
-version = "0.2.5"
+version = "0.2.7"
 description = "Computer control capabilities using PyAutoGUI through a Model Context Protocol (MCP) server"
 readme = "README.md"
 requires-python = ">=3.12"

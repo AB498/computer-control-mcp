@@ -2,6 +2,12 @@
 
 MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. With Zero External Dependencies.
 
+* ***Only tested on Windows. Contributions are welcome.***
+
+## Example
+
+![MCP Computer Control Demo](demonstration.gif)
+
 ## Quick Usage (MCP Setup Using `uvx`)
 
 ```json
@@ -34,6 +40,23 @@ computer-control-mcp # instead of uvx computer-control-mcp, so you can use the l
 - Press keyboard keys
 - Drag and drop operations
 
+## Available Tools
+
+### Mouse Control
+- `click_screen(x: int, y: int)`: Click at specified screen coordinates
+- `move_mouse(x: int, y: int)`: Move mouse cursor to specified coordinates
+- `drag_mouse(from_x: int, from_y: int, to_x: int, to_y: int, duration: float = 0.5)`: Drag mouse from one position to another
+
+### Keyboard Control
+- `type_text(text: str)`: Type the specified text at current cursor position
+- `press_key(key: str)`: Press a specified keyboard key
+
+### Screen and Window Management
+- `take_screenshot(title_pattern: str = None, use_regex: bool = False, threshold: int = 60, with_ocr_text_and_coords: bool = False, scale_percent_for_ocr: int = 100, save_to_downloads: bool = False)`: Capture screen or window with optional OCR
+- `get_screen_size()`: Get current screen resolution
+- `list_windows()`: List all open windows
+- `activate_window(title_pattern: str, use_regex: bool = False, threshold: int = 60)`: Bring specified window to foreground
+
 ### Running as a Module
 
 You can run the package as a module:
@@ -53,17 +76,6 @@ cd computer-control-mcp
 
 # Install in development mode
 pip install -e .
-```
-
-Or with uv:
-
-```bash
-# Clone the repository
-git clone https://github.com/AB498/computer-control-mcp.git
-cd computer-control-mcp
-
-# Install in development mode
-uv pip install -e .
 ```
 
 ### Running Tests
