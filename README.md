@@ -91,3 +91,7 @@ See the [API Reference](docs/api.md) for detailed information about the availabl
 ## License
 
 MIT
+
+## Contact
+
+For any questions or suggestions, you can open an issue on GitHub or email author at abcd49800@gmail.com.
