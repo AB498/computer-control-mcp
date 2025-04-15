@@ -2,7 +2,7 @@
 
 ### MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. Similar to 'computer-use' by Anthropic. With Zero External Dependencies.
 
-* *Only tested on Windows. Contributions are welcome.*
+* *Only tested on Windows. Should work on other platforms.*
 
 <div style="text-align:center;font-family: monospace; display: flex; align-items: center; justify-content: center; width: 100%; gap: 10px">
         <a href="https://discord.gg/dquNGYwfnW"><img src="https://img.shields.io/discord/1095854826786668545" alt="Discord"></a>
