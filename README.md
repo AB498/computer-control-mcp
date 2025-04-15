@@ -12,7 +12,7 @@
 
 ---
 
-![MCP Computer Control Demo](demonstration.gif)
+![MCP Computer Control Demo](https://github.com/AB498/computer-control-mcp/blob/main/demonstration.gif?raw=true)
 
 ## Quick Usage (MCP Setup Using `uvx`)
 
