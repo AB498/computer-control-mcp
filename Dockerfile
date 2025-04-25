@@ -1,13 +1,25 @@
-FROM python:3.11-slim
+# Use a lightweight Python base image
+FROM python:3.12-slim
 
-# Set the working directory in the container
+# Set environment variables for Python
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Set working directory
 WORKDIR /app
 
-# Copy application code
-COPY . /app
+# Copy dependency file(s)
+COPY pyproject.toml .
+COPY src/ src/
+COPY README.md README.md
 
-# Install required Python packages
-RUN pip install -e .
+# Install build backend (Hatchling)
+RUN pip install --upgrade pip && \
+    pip install hatchling && \
+    pip install -e .
 
-# Default command to start the MCP server
-CMD ["python", "src/computer_control_mcp/core.py"]
+# Copy any additional files (e.g. configs, CLI, entrypoints)
+COPY . .
+
+# Default command (can be overridden)
+CMD ["python", "-m", "computer_control_mcp"]

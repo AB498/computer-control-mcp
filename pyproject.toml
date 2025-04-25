@@ -43,7 +43,7 @@ computer-control-mcp = "computer_control_mcp.cli:main"
 computer-control-mcp-server = "computer_control_mcp.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["computer_control_mcp"]
+packages = ["src/computer_control_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

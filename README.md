@@ -74,6 +74,9 @@ cd computer-control-mcp
 
 # Install in development mode
 pip install -e .
+
+# Start server
+python -m computer_control_mcp.core
 ```
 
 ### Running Tests
