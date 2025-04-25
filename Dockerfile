@@ -1,11 +1,13 @@
 FROM python:3.11-slim
 
-# Install dependencies without running prepare
+# Set the working directory in the container
 WORKDIR /app
-RUN pip install -e .
 
-# Copy source and run setup to download WASM parsers
-COPY . ./
+# Copy application code
+COPY . /app
+
+# Install required Python packages
+RUN pip install -e .
 
 # Default command to start the MCP server
 CMD ["python", "src/computer_control_mcp/core.py"]
