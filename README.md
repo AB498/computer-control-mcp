@@ -16,6 +16,8 @@
 
 ## Quick Usage (MCP Setup Using `uvx`)
 
+***Note:** Running `uvx computer-control-mcp@latest` for the first time will download python dependencies (around 70MB) which may take some time. Recommended to run this in a terminal before using it as MCP. Subsequent runs will be instant.* 
+
 ```json
 {
   "mcpServers": {
