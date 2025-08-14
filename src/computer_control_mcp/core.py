@@ -5,6 +5,7 @@ A compact ModelContextProtocol server that provides computer control capabilitie
 using PyAutoGUI for mouse/keyboard control.
 """
 
+import json
 import shutil
 import sys
 import os
@@ -23,16 +24,23 @@ from mcp.server.fastmcp import FastMCP, Image
 import pygetwindow as gw
 from fuzzywuzzy import fuzz, process
 
-from rapidocr import RapidOCR
 import cv2
-from rapidocr_onnxruntime import RapidOCR, VisRes
+from rapidocr import RapidOCR
+from rapidocr_onnxruntime import VisRes
+
+from pydantic import BaseModel
+
+BaseModel.model_config = {'arbitrary_types_allowed': True}
+
+engine = RapidOCR()
+vis = VisRes()
 
 
 DEBUG = True  # Set to False in production
 RELOAD_ENABLED = True  # Set to False to disable auto-reload
 
 # Create FastMCP server instance at module level
-mcp = FastMCP("ComputerControlMCP", version="1.0.0")
+mcp = FastMCP("ComputerControlMCP")
 
 
 def log(message: str) -> None:
@@ -192,7 +200,7 @@ def take_screenshot(
     use_regex: bool = False,
     threshold: int = 60,
     with_ocr_text_and_coords: bool = False,
-    scale_percent_for_ocr: int = 100,
+    scale_percent_for_ocr: int = None,
     save_to_downloads: bool = False,
 ) -> Image | List[Tuple[List[List[int]], str, float]]:
     """
@@ -239,18 +247,23 @@ def take_screenshot(
             current_active_window = gw.getActiveWindow()
             log(f"Taking screenshot of window: {window.title}")
             # Activate the window and wait for it to be fully in focus
-            window.activate()
-            pyautogui.sleep(0.5)  # Wait for 0.5 seconds to ensure window is active
-            screenshot = pyautogui.screenshot(
-                region=(window.left, window.top, window.width, window.height)
-            )
-            # Restore the previously active window
-            if current_active_window:
-                try:
-                    current_active_window.activate()
-                    pyautogui.sleep(0.2)  # Wait a bit to ensure previous window is restored
-                except Exception as e:
-                    log(f"Error restoring previous window: {str(e)}")
+            try:
+                    
+                window.activate()
+                pyautogui.sleep(0.5)  # Wait for 0.5 seconds to ensure window is active
+                screenshot = pyautogui.screenshot(
+                    region=(window.left, window.top, window.width, window.height)
+                )
+                # Restore the previously active window
+                if current_active_window:
+                    try:
+                        current_active_window.activate()
+                        pyautogui.sleep(0.2)  # Wait a bit to ensure previous window is restored
+                    except Exception as e:
+                        log(f"Error restoring previous window: {str(e)}")
+            except Exception as e:
+                log(f"Error taking screenshot of window: {str(e)}")
+                return f"Error taking screenshot of window: {str(e)}"
 
         # Create temp directory
         temp_dir = Path(tempfile.mkdtemp())
@@ -274,6 +287,10 @@ def take_screenshot(
         image_path = image.path
         img = cv2.imread(image_path)
 
+        if scale_percent_for_ocr is None:
+            # Calculate percent to scale height to 360 pixels
+            scale_percent_for_ocr = 100 # 360 / img.shape[0] * 100
+
         # Lower down resolution before processing
         width = int(img.shape[1] * scale_percent_for_ocr / 100)
         height = int(img.shape[0] * scale_percent_for_ocr / 100)
@@ -281,19 +298,20 @@ def take_screenshot(
         resized_img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
         # save resized image to pwd
         # cv2.imwrite("resized_img.png", resized_img)
-        engine = RapidOCR()
-        vis = VisRes()
-
-        result, elapse_list = engine(resized_img)
-        boxes, txts, scores = list(zip(*result))
-        boxes = [
-            [[x + window.left, y + window.top] if window else [x, y] for x, y in box]
-            for box in boxes
-        ]
+   
+        output = engine(resized_img)
+        boxes  = output.boxes
+        txts   = output.txts
+        scores = output.scores
         zipped_results = list(zip(boxes, txts, scores))
-
-        return [image, *zipped_results]
-
+        zipped_results = [
+            (box.tolist(), text, float(score))  # convert np.array -> list, ensure score is float
+            for box, text, score in zipped_results
+        ]
+        log(f"Found {len(zipped_results)} text items in OCR result.")
+        log(f"First 5 items: {zipped_results[:5]}")
+        return json.dumps(zipped_results)
+        # ...existing code...
     except Exception as e:
         log(f"Error in screenshot or getting UI elements: {str(e)}")
         import traceback
@@ -371,14 +389,14 @@ def list_windows() -> List[Dict[str, Any]]:
                         "is_visible": window.visible,
                         "is_minimized": window.isMinimized,
                         "is_maximized": window.isMaximized,
-                        "screenshot": pyautogui.screenshot(
-                            region=(
-                                window.left,
-                                window.top,
-                                window.width,
-                                window.height,
-                            )
-                        ),
+                        # "screenshot": pyautogui.screenshot(
+                        #     region=(
+                        #         window.left,
+                        #         window.top,
+                        #         window.width,
+                        #         window.height,
+                        #     )
+                        # ),
                     }
                 )
         return result
