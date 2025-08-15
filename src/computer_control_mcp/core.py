@@ -153,13 +153,6 @@ def _find_matching_window(
 
 # --- MCP Function Handlers ---
 
-
-@mcp.tool()
-def tool_version() -> str:
-    """Get the version of the tool."""
-    return "0.2.7"
-
-
 @mcp.tool()
 def click_screen(x: int, y: int) -> str:
     """Click at the specified screen coordinates."""
