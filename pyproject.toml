@@ -4,14 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "computer-control-mcp"
-version = "0.2.8"
+version = "0.3.0"
 description = "MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. Similar to 'computer-use' by Anthropic. With Zero External Dependencies."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 license = {text = "MIT"}
-authors = [
-    {name = "AB498", email = "abcd49800@gmail.com"},
-]
+authors = [{name = "AB498", email = "abcd49800@gmail.com"}]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -42,16 +40,9 @@ Documentation = "https://github.com/AB498/computer-control-mcp#readme"
 computer-control-mcp = "computer_control_mcp.cli:main"
 computer-control-mcp-server = "computer_control_mcp.server:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/computer_control_mcp"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-
 [tool.hatch.build]
 sources = ["src"]
 packages = ["src/computer_control_mcp"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/computer_control_mcp"]
