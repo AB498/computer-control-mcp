@@ -21,19 +21,20 @@ import tempfile
 # --- Auto-install dependencies if needed ---
 import pyautogui
 from mcp.server.fastmcp import FastMCP, Image
-import pygetwindow as gw
+try:
+    import pygetwindow as gw
+except (NotImplementedError, ImportError):
+    import pywinctl as gw
 from fuzzywuzzy import fuzz, process
 
 import cv2
 from rapidocr import RapidOCR
-from rapidocr_onnxruntime import VisRes
 
 from pydantic import BaseModel
 
 BaseModel.model_config = {'arbitrary_types_allowed': True}
 
 engine = RapidOCR()
-vis = VisRes()
 
 
 DEBUG = True  # Set to False in production
@@ -195,7 +196,7 @@ def take_screenshot(
     with_ocr_text_and_coords: bool = False,
     scale_percent_for_ocr: int = None,
     save_to_downloads: bool = False,
-) -> Image | List[Tuple[List[List[int]], str, float]]:
+) -> Any:
     """
     Get screenshot and  OCR text with absolute coordinates (returned after adding the window offset from true (0, 0) of screen to the OCR coordinates, so clicking is on-point. Recommended to click in the middle of OCR Box) and confidence from window with the specified title pattern.
     If no title pattern is provided, get screenshot of entire screen and all text on the screen.
