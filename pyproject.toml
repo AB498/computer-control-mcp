@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "computer-control-mcp"
+version = "0.3.1"
+description = "MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. Similar to 'computer-use' by Anthropic. With Zero External Dependencies."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "AB498", email = "abcd49800@gmail.com"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Utilities"
+]
+dependencies = [
+    "pyautogui==0.9.54",
+    "mcp[cli]==1.13.0",
+    "pillow==11.3.0",
+    "pygetwindow==0.0.9",
+    "pywinctl==0.4.1",
+    "fuzzywuzzy==0.18.0",
+    "rapidocr==3.3.1",
+    "onnxruntime==1.22.0",
+    "rapidocr_onnxruntime==1.2.3",
+    "opencv-python==4.12.0.88",
+    "mss>=7.0.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/AB498/computer-control-mcp"
+Issues = "https://github.com/AB498/computer-control-mcp/issues"
+Documentation = "https://github.com/AB498/computer-control-mcp#readme"
+
+[project.scripts]
+computer-control-mcp = "computer_control_mcp.cli:main"
+computer-control-mcp-server = "computer_control_mcp.server:main"
+
+[tool.hatch.build]
+sources = ["src"]
+packages = ["src/computer_control_mcp"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/computer_control_mcp"]
