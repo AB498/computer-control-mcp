@@ -73,6 +73,7 @@ computer-control-mcp # instead of uvx computer-control-mcp, so you can use the l
 - `get_screen_size()`: Get current screen resolution
 - `list_windows()`: List all open windows
 - `activate_window(title_pattern: str, use_regex: bool = False, threshold: int = 60)`: Bring specified window to foreground
+- `wait_milliseconds(milliseconds: int)`: Wait for a specified number of milliseconds
 
 ## Development
 
@@ -91,15 +92,15 @@ python -m computer_control_mcp.core
 
 # -- OR --
 
-# Build
+# Build after `pip install hatch`
 hatch build
-
-# Non-windows
-pip install dist/*.whl --upgrade
 
 # Windows
 $latest = Get-ChildItem .\dist\*.whl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 pip install $latest.FullName --upgrade 
+
+# Non-windows
+pip install dist/*.whl --upgrade
 
 # Run
 computer-control-mcp

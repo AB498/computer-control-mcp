@@ -663,6 +663,26 @@ def list_windows() -> List[Dict[str, Any]]:
 
 
 @mcp.tool()
+def wait_milliseconds(milliseconds: int) -> str:
+    """
+    Wait for a specified number of milliseconds.
+    
+    Args:
+        milliseconds: Number of milliseconds to wait
+        
+    Returns:
+        Success message after waiting
+    """
+    try:
+        import time
+        seconds = milliseconds / 1000.0
+        time.sleep(seconds)
+        return f"Successfully waited for {milliseconds} milliseconds"
+    except Exception as e:
+        return f"Error waiting for {milliseconds} milliseconds: {str(e)}"
+
+
+@mcp.tool()
 def activate_window(
     title_pattern: str, use_regex: bool = False, threshold: int = 60
 ) -> str:
