@@ -50,6 +50,20 @@ computer-control-mcp # instead of uvx computer-control-mcp, so you can use the l
 - List and activate windows
 - Press keyboard keys
 - Drag and drop operations
+- Enhanced screenshot capture for GPU-accelerated windows (Windows only)
+
+## Why Windows Graphics Capture (WGC) is Needed
+
+Traditional screenshot methods like GDI/PrintWindow cannot capture the content of GPU-accelerated windows, resulting in black screens. This affects:
+
+- **Games and 3D applications** that use DirectX/OpenGL
+- **Media players** with hardware-accelerated video decoding
+- **Electron applications** like Discord, WhatsApp, and Slack
+- **Browsers** with GPU acceleration enabled
+- **Streaming/recording software** like OBS Studio
+- **CAD and design software** that utilize GPU rendering
+
+WGC solves this by using the modern Windows Graphics Capture API, which can capture frames directly from the GPU composition surface, bypassing the limitations of traditional capture methods.
 
 ## Configuration
 
@@ -82,6 +96,54 @@ export COMPUTER_CONTROL_MCP_SCREENSHOT_DIR="/home/yourname/Pictures/Screenshots"
 
 If the specified directory doesn't exist, the server will fall back to the default downloads directory.
 
+### Automatic WGC for Specific Windows
+
+You can configure the system to automatically use Windows Graphics Capture (WGC) for specific windows by setting the `COMPUTER_CONTROL_MCP_WGC_PATTERNS` environment variable. This variable should contain comma-separated patterns that match window titles:
+
+```json
+{
+  "mcpServers": {
+    "computer-control-mcp": {
+      "command": "uvx",
+      "args": ["computer-control-mcp@latest"],
+      "env": {
+        "COMPUTER_CONTROL_MCP_WGC_PATTERNS": "obs, discord, game, steam"
+      }
+    }
+  }
+}
+```
+
+Or set it system-wide:
+```bash
+# Windows (PowerShell)
+$env:COMPUTER_CONTROL_MCP_WGC_PATTERNS = "obs, discord, game, steam"
+
+# macOS/Linux
+export COMPUTER_CONTROL_MCP_WGC_PATTERNS="obs, discord, game, steam"
+```
+
+When this variable is set, any window whose title contains any of the specified patterns will automatically use WGC for screenshot capture, eliminating black screens for GPU-accelerated applications.
+
+## Windows Graphics Capture (WGC) Support
+
+On Windows 10 version 1803 and later, this package supports the Windows Graphics Capture (WGC) API for enhanced screenshot capabilities. This is particularly useful for capturing GPU-accelerated windows such as:
+
+- OBS Studio
+- Games and 3D applications
+- Discord, WhatsApp (Electron applications)
+- Video players with hardware decode
+- Browsers with GPU acceleration
+
+To enable WGC support, install the optional dependency:
+```bash
+pip install windows-capture
+```
+
+When WGC is available, the [take_screenshot](file:///D:/code/mcp/computer-control-mcp/src/computer_control_mcp/core.py#L305-L424) tool will automatically attempt to use it for window captures when:
+1. The `use_wgc` parameter is set to `True`
+2. The window title matches any pattern defined in the `COMPUTER_CONTROL_MCP_WGC_PATTERNS` environment variable
+
 ## Available Tools
 
 ### Mouse Control
@@ -99,7 +161,7 @@ If the specified directory doesn't exist, the server will fall back to the defau
 - `press_keys(keys: Union[str, List[Union[str, List[str]]]])`: Press keyboard keys (supports single keys, sequences, and combinations)
 
 ### Screen and Window Management
-- `take_screenshot(title_pattern: str = None, use_regex: bool = False, threshold: int = 60, scale_percent_for_ocr: int = None, save_to_downloads: bool = False)`: Capture screen or window
+- `take_screenshot(title_pattern: str = None, use_regex: bool = False, threshold: int = 60, scale_percent_for_ocr: int = None, save_to_downloads: bool = False, use_wgc: bool = False)`: Capture screen or window
 - `take_screenshot_with_ocr(title_pattern: str = None, use_regex: bool = False, threshold: int = 10, scale_percent_for_ocr: int = None, save_to_downloads: bool = False)`: Extract adn return text with coordinates using OCR from screen or window
 - `get_screen_size()`: Get current screen resolution
 - `list_windows()`: List all open windows
@@ -115,15 +177,17 @@ If the specified directory doesn't exist, the server will fall back to the defau
 git clone https://github.com/AB498/computer-control-mcp.git
 cd computer-control-mcp
 
-# Install in development mode
+# Build/Run:
+
+# 1. Install in development mode | Meaning that your edits to source code will be reflected in the installed package.
 pip install -e .
 
-# Start server
-python -m computer_control_mcp.core
+# Then Start server | This is equivalent to `uvx computer-control-mcp@latest` just the local code is used
+computer-control-mcp
 
 # -- OR --
 
-# Build after `pip install hatch`
+# 2. Build after `pip install hatch` | This needs version increment in orer to reflect code changes
 hatch build
 
 # Windows

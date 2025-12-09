@@ -18,6 +18,7 @@ import datetime
 from pathlib import Path
 import tempfile
 from typing import Union
+import threading
 
 # --- Auto-install dependencies if needed ---
 import pyautogui
@@ -46,6 +47,14 @@ RELOAD_ENABLED = True  # Set to False to disable auto-reload
 
 # Create FastMCP server instance at module level
 mcp = FastMCP("ComputerControlMCP")
+
+
+# Try to import Windows Graphics Capture API
+try:
+    from windows_capture import WindowsCapture, Frame, InternalCaptureControl
+    WGC_AVAILABLE = True
+except ImportError:
+    WGC_AVAILABLE = False
 
 
 # Determine mode automatically
@@ -91,6 +100,39 @@ def get_downloads_dir() -> Path:
         return Path.home() / "Downloads"
 
 
+def _should_use_wgc_by_default(window_title: str) -> bool:
+    """Check if WGC should be used for a window based on environment variable patterns.
+    
+    Checks the COMPUTER_CONTROL_MCP_WGC_PATTERNS environment variable, which should
+    contain comma-separated patterns. If any pattern matches the window title,
+    WGC will be used by default.
+    
+    Args:
+        window_title: Title of the window to check
+        
+    Returns:
+        True if WGC should be used by default for this window, False otherwise
+    """
+    # Get patterns from environment variable
+    patterns_str = os.getenv("COMPUTER_CONTROL_MCP_WGC_PATTERNS")
+    if not patterns_str:
+        return False
+    
+    # Split patterns by comma and trim whitespace
+    patterns = [pattern.strip().lower() for pattern in patterns_str.split(",") if pattern.strip()]
+    
+    # Convert window title to lowercase for case-insensitive matching
+    title_lower = window_title.lower()
+    
+    # Check if any pattern matches
+    for pattern in patterns:
+        if pattern in title_lower:
+            log(f"Window '{window_title}' matches WGC pattern: {pattern}")
+            return True
+    
+    return False
+
+
 def _mss_screenshot(region=None):
     """Take a screenshot using mss and return PIL Image.
 
@@ -119,6 +161,88 @@ def _mss_screenshot(region=None):
         return PILImage.frombytes(
             "RGB", screenshot.size, screenshot.bgra, "raw", "BGRX"
         )
+
+
+def _wgc_screenshot(window_title: str) -> Optional[Tuple[bytes, int, int]]:
+    """Capture a window using Windows Graphics Capture API.
+    
+    Args:
+        window_title: Title of the window to capture
+        
+    Returns:
+        Tuple of (image_bytes, width, height) or None if failed
+    """
+    if not WGC_AVAILABLE:
+        log("Windows Graphics Capture API not available")
+        return None
+        
+    captured_frame = {"data": None, "width": 0, "height": 0, "error": None}
+    capture_event = threading.Event()
+
+    try:
+        capture = WindowsCapture(
+            cursor_capture=False,
+            draw_border=False,
+            monitor_index=None,
+            window_name=window_title,
+        )
+
+        @capture.event
+        def on_frame_arrived(frame: Frame, capture_control: InternalCaptureControl):
+            try:
+                # Save frame to temp file, then read it back
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                    tmp_path = tmp.name
+
+                frame.save_as_image(tmp_path)
+
+                with open(tmp_path, "rb") as f:
+                    captured_frame["data"] = f.read()
+
+                # Get dimensions from the saved image
+                with PILImage.open(tmp_path) as img:
+                    captured_frame["width"] = img.width
+                    captured_frame["height"] = img.height
+
+                os.unlink(tmp_path)
+            except Exception as e:
+                captured_frame["error"] = str(e)
+            finally:
+                capture_control.stop()
+                capture_event.set()
+
+        @capture.event
+        def on_closed():
+            capture_event.set()
+
+        # Start capture in a thread
+        def run_capture():
+            try:
+                capture.start()
+            except Exception as e:
+                captured_frame["error"] = str(e)
+                capture_event.set()
+
+        thread = threading.Thread(target=run_capture, daemon=True)
+        thread.start()
+
+        # Wait for frame (with timeout)
+        if not capture_event.wait(timeout=5.0):
+            captured_frame["error"] = "Capture timed out"
+
+        if captured_frame["error"]:
+            log(f"WGC capture error: {captured_frame['error']}")
+            return None
+
+        if captured_frame["data"] is None:
+            log("No frame captured with WGC")
+            return None
+
+        return captured_frame["data"], captured_frame["width"], captured_frame["height"]
+
+    except Exception as e:
+        log(f"WGC capture failed: {e}")
+        return None
 
 
 def save_image_to_downloads(
@@ -254,6 +378,7 @@ def take_screenshot(
     threshold: int = 10,
     scale_percent_for_ocr: int = None,
     save_to_downloads: bool = False,
+    use_wgc: bool = False,
 ) -> Image:
     """
     Get screenshot Image as MCP Image object. If no title pattern is provided, get screenshot of entire screen and all text on the screen.
@@ -264,6 +389,7 @@ def take_screenshot(
         threshold: Minimum score (0-100) required for a fuzzy match
         scale_percent_for_ocr: Percentage to scale the image down before processing, you wont need this most of the time unless your pc is extremely old or slow
         save_to_downloads: If True, save the screenshot to the downloads directory and return the absolute path
+        use_wgc: If True, use Windows Graphics Capture API for window capture (recommended for GPU-accelerated windows)
 
     Returns:
         Returns a single screenshot as MCP Image object. "content type image not supported" means preview isnt supported but Image object is there and returned successfully.
@@ -319,22 +445,55 @@ def take_screenshot(
                 current_active_window = gw.getActiveWindow()
                 log(f"Taking screenshot of window: {window.title}")
 
-                if sys.platform == "win32":
-                    force_activate(window)
+                # Determine if we should use WGC:
+                # 1. If explicitly requested via use_wgc parameter
+                # 2. If the window matches patterns defined in environment variable
+                should_use_wgc = use_wgc or _should_use_wgc_by_default(window.title)
+                
+                # Try WGC capture first if requested or if it's likely a GPU-accelerated window
+                if should_use_wgc and WGC_AVAILABLE:
+                    log("Attempting WGC capture")
+                    wgc_result = _wgc_screenshot(window.title)
+                    if wgc_result:
+                        image_bytes, width, height = wgc_result
+                        screenshot = PILImage.open(BytesIO(image_bytes))
+                        log(f"WGC capture successful: {width}x{height}")
+                    else:
+                        log("WGC capture failed, falling back to MSS")
+                        # Fall back to MSS if WGC fails
+                        if sys.platform == "win32":
+                            force_activate(window)
+                        else:
+                            window.activate()
+                        pyautogui.sleep(0.5)  # Give Windows time to focus
+
+                        screen_width, screen_height = pyautogui.size()
+
+                        screenshot = _mss_screenshot(
+                            region=(
+                                max(window.left, 0),
+                                max(window.top, 0),
+                                min(window.width, screen_width),
+                                min(window.height, screen_height),
+                            )
+                        )
                 else:
-                    window.activate()
-                pyautogui.sleep(0.5)  # Give Windows time to focus
+                    if sys.platform == "win32":
+                        force_activate(window)
+                    else:
+                        window.activate()
+                    pyautogui.sleep(0.5)  # Give Windows time to focus
 
-                screen_width, screen_height = pyautogui.size()
+                    screen_width, screen_height = pyautogui.size()
 
-                screenshot = _mss_screenshot(
-                    region=(
-                        max(window.left, 0),
-                        max(window.top, 0),
-                        min(window.width, screen_width),
-                        min(window.height, screen_height),
+                    screenshot = _mss_screenshot(
+                        region=(
+                            max(window.left, 0),
+                            max(window.top, 0),
+                            min(window.width, screen_width),
+                            min(window.height, screen_height),
+                        )
                     )
-                )
 
                 # Restore previously active window
                 if current_active_window and current_active_window != window:
@@ -750,6 +909,16 @@ def activate_window(
 def main():
     """Main entry point for the MCP server."""
     pyautogui.FAILSAFE = True
+
+    if WGC_AVAILABLE:
+        log("Windows Graphics Capture API is available for enhanced window capture")
+        # Check if any WGC patterns are configured
+        wgc_patterns = os.getenv("COMPUTER_CONTROL_MCP_WGC_PATTERNS")
+        if wgc_patterns:
+            patterns = [p.strip() for p in wgc_patterns.split(",") if p.strip()]
+            log(f"WGC patterns configured: {patterns}")
+    else:
+        log("Windows Graphics Capture API not available. Using standard capture methods.")
 
     try:
         # Run the server
