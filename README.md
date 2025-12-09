@@ -51,6 +51,37 @@ computer-control-mcp # instead of uvx computer-control-mcp, so you can use the l
 - Press keyboard keys
 - Drag and drop operations
 
+## Configuration
+
+### Custom Screenshot Directory
+
+By default, screenshots are saved to the OS downloads directory. You can customize this by setting the `COMPUTER_CONTROL_MCP_SCREENSHOT_DIR` environment variable:
+
+```json
+{
+  "mcpServers": {
+    "computer-control-mcp": {
+      "command": "uvx",
+      "args": ["computer-control-mcp@latest"],
+      "env": {
+        "COMPUTER_CONTROL_MCP_SCREENSHOT_DIR": "C:\\Users\\YourName\\Pictures\\Screenshots"
+      }
+    }
+  }
+}
+```
+
+Or set it system-wide:
+```bash
+# Windows (PowerShell)
+$env:COMPUTER_CONTROL_MCP_SCREENSHOT_DIR = "C:\Users\YourName\Pictures\Screenshots"
+
+# macOS/Linux
+export COMPUTER_CONTROL_MCP_SCREENSHOT_DIR="/home/yourname/Pictures/Screenshots"
+```
+
+If the specified directory doesn't exist, the server will fall back to the default downloads directory.
+
 ## Available Tools
 
 ### Mouse Control

@@ -64,7 +64,21 @@ def log(message: str) -> None:
 
 
 def get_downloads_dir() -> Path:
-    """Get the OS downloads directory."""
+    """Get the directory for saving screenshots.
+
+    Checks for COMPUTER_CONTROL_MCP_SCREENSHOT_DIR environment variable first,
+    then falls back to the OS downloads directory.
+    """
+    # Check for custom directory from environment variable
+    custom_dir = os.getenv("COMPUTER_CONTROL_MCP_SCREENSHOT_DIR")
+    if custom_dir:
+        custom_path = Path(custom_dir)
+        if custom_path.exists() and custom_path.is_dir():
+            return custom_path
+        else:
+            log(f"Warning: COMPUTER_CONTROL_MCP_SCREENSHOT_DIR path '{custom_dir}' does not exist or is not a directory. Falling back to default.")
+
+    # Default: OS downloads directory
     if os.name == "nt":  # Windows
         import winreg
 
