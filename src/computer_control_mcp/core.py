@@ -62,14 +62,37 @@ IS_DEVELOPMENT = os.getenv("ENV") == "development"
 
 
 def log(message: str) -> None:
-    """Log to stderr in dev, to stdout or file in production."""
-    if IS_DEVELOPMENT:
-        # In dev, write to stderr
-        print(f"[DEV] {message}", file=sys.stderr)
-    else:
-        # In production, write to stdout or a file
-        print(f"[PROD] {message}", file=sys.stdout)
-        # or append to a file: open("app.log", "a").write(message+"\n")
+    """Log to stderr in dev, to stdout or file in production.
+    
+    Handles Unicode encoding errors gracefully to prevent crashes
+    when printing special characters on Windows terminals.
+    """
+    try:
+        if IS_DEVELOPMENT:
+            # In dev, write to stderr
+            print(f"[DEV] {message}", file=sys.stderr)
+        else:
+            # In production, write to stdout or a file
+            print(f"[PROD] {message}", file=sys.stdout)
+            # or append to a file: open("app.log", "a").write(message+"\n")
+    except UnicodeEncodeError:
+        # Handle encoding errors by escaping or replacing problematic characters
+        safe_message = message.encode('utf-8', errors='replace').decode('utf-8')
+        if IS_DEVELOPMENT:
+            print(f"[DEV] {safe_message}", file=sys.stderr)
+        else:
+            print(f"[PROD] {safe_message}", file=sys.stdout)
+    except Exception:
+        # Fallback for any other printing errors
+        try:
+            safe_message = repr(message)  # Use repr to escape special characters
+            if IS_DEVELOPMENT:
+                print(f"[DEV] {safe_message}", file=sys.stderr)
+            else:
+                print(f"[PROD] {safe_message}", file=sys.stdout)
+        except Exception:
+            # Last resort - if even repr fails, don't crash
+            pass
 
 
 def get_downloads_dir() -> Path:
@@ -547,6 +570,40 @@ def is_low_spec_pc() -> bool:
         return False
 
 
+def _safe_format_ocr_results(results: List[Tuple]) -> str:
+    """Safely format OCR results for logging, handling Unicode characters.
+    
+    Args:
+        results: List of OCR results tuples ([boxes], text, confidence)
+        
+    Returns:
+        Safely formatted string representation of the results
+    """
+    try:
+        # Try normal formatting first
+        return str(results)
+    except UnicodeEncodeError:
+        # If that fails, create a safe representation
+        safe_items = []
+        for item in results:
+            # Handle each component of the tuple
+            boxes, text, confidence = item
+            # Ensure text is safe for printing
+            try:
+                safe_text = str(text)
+                safe_text.encode('utf-8').decode(sys.stdout.encoding or 'utf-8')
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                # Replace problematic characters
+                safe_text = text.encode('utf-8', errors='replace').decode('utf-8')
+            
+            safe_items.append((boxes, safe_text, confidence))
+        
+        return str(safe_items)
+    except Exception:
+        # Ultimate fallback
+        return f"<OCR results with {len(results)} items>"
+
+
 @mcp.tool()
 def take_screenshot_with_ocr(
     title_pattern: str = None,
@@ -660,7 +717,8 @@ def take_screenshot_with_ocr(
             for box, text, score in zipped_results
         ]
         log(f"Found {len(zipped_results)} text items in OCR result.")
-        log(f"First 5 items: {zipped_results[:5]}")
+        # Use safe formatting for OCR results to prevent Unicode encoding errors
+        log(f"First 5 items: {_safe_format_ocr_results(zipped_results[:5])}")
         return (
             ",\n".join([str(item) for item in zipped_results])
             if zipped_results

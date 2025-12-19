@@ -52,18 +52,9 @@ computer-control-mcp # instead of uvx computer-control-mcp, so you can use the l
 - Drag and drop operations
 - Enhanced screenshot capture for GPU-accelerated windows (Windows only)
 
-## Why Windows Graphics Capture (WGC) is Needed
+## Note on GPU-accelerated Windows
 
-Traditional screenshot methods like GDI/PrintWindow cannot capture the content of GPU-accelerated windows, resulting in black screens. This affects:
-
-- **Games and 3D applications** that use DirectX/OpenGL
-- **Media players** with hardware-accelerated video decoding
-- **Electron applications** like Discord, WhatsApp, and Slack
-- **Browsers** with GPU acceleration enabled
-- **Streaming/recording software** like OBS Studio
-- **CAD and design software** that utilize GPU rendering
-
-WGC solves this by using the modern Windows Graphics Capture API, which can capture frames directly from the GPU composition surface, bypassing the limitations of traditional capture methods.
+Traditional screenshot methods like GDI/PrintWindow fail to capture GPU-accelerated windows, resulting in black screens. This impacts games, media players, Electron apps, browsers with GPU acceleration, streaming software, and CAD tools. Use WGC through `take_screenshot` tool's flag or `ENV` variable
 
 ## Configuration
 
@@ -124,25 +115,6 @@ export COMPUTER_CONTROL_MCP_WGC_PATTERNS="obs, discord, game, steam"
 ```
 
 When this variable is set, any window whose title contains any of the specified patterns will automatically use WGC for screenshot capture, eliminating black screens for GPU-accelerated applications.
-
-## Windows Graphics Capture (WGC) Support
-
-On Windows 10 version 1803 and later, this package supports the Windows Graphics Capture (WGC) API for enhanced screenshot capabilities. This is particularly useful for capturing GPU-accelerated windows such as:
-
-- OBS Studio
-- Games and 3D applications
-- Discord, WhatsApp (Electron applications)
-- Video players with hardware decode
-- Browsers with GPU acceleration
-
-To enable WGC support, install the optional dependency:
-```bash
-pip install windows-capture
-```
-
-When WGC is available, the [take_screenshot](file:///D:/code/mcp/computer-control-mcp/src/computer_control_mcp/core.py#L305-L424) tool will automatically attempt to use it for window captures when:
-1. The `use_wgc` parameter is set to `True`
-2. The window title matches any pattern defined in the `COMPUTER_CONTROL_MCP_WGC_PATTERNS` environment variable
 
 ## Available Tools
 
