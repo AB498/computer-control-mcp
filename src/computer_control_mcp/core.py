@@ -691,14 +691,29 @@ def take_screenshot_with_ocr(
         image_path = image.path
         img = cv2.imread(image_path)
 
+        if img is None:
+            log(f"Error: Failed to read image from {image_path}")
+            return f"Error: Failed to read image from {image_path}"
+
         if scale_percent_for_ocr is None:
             # Calculate percent to scale height to 360 pixels
             scale_percent_for_ocr = 100  # 360 / img.shape[0] * 100
 
+        # Validate scale_percent_for_ocr
+        if scale_percent_for_ocr <= 0:
+            log(f"Error: scale_percent_for_ocr must be greater than 0, got {scale_percent_for_ocr}")
+            return f"Error: scale_percent_for_ocr must be greater than 0, got {scale_percent_for_ocr}"
+
         # Lower down resolution before processing
         width = int(img.shape[1] * scale_percent_for_ocr / 100)
         height = int(img.shape[0] * scale_percent_for_ocr / 100)
+        
+        # Ensure dimensions are at least 1 pixel
+        width = max(1, width)
+        height = max(1, height)
+        
         dim = (width, height)
+        log(f"Resizing image from {img.shape[1]}x{img.shape[0]} to {width}x{height} (scale: {scale_percent_for_ocr}%)")
         resized_img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
         # save resized image to pwd
         # cv2.imwrite("resized_img.png", resized_img)

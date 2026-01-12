@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "computer-control-mcp"
-version = "0.3.9"
+version = "0.3.10"
 description = "MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. Similar to 'computer-use' by Anthropic. With Zero External Dependencies."
 readme = "README.md"
 requires-python = ">=3.8"
