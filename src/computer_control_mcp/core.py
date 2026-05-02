@@ -417,73 +417,91 @@ def take_screenshot(
     Returns:
         Returns a single screenshot as MCP Image object. "content type image not supported" means preview isnt supported but Image object is there and returned successfully.
     """
-    try:
-        all_windows = gw.getAllWindows()
+    if sys.platform=="wind32":
+        try:
+            all_windows = gw.getAllWindows()
 
-        # Convert to list of dictionaries for _find_matching_window
-        windows = []
-        for window in all_windows:
-            if window.title:  # Only include windows with titles
-                windows.append(
-                    {
-                        "title": window.title,
-                        "window_obj": window,  # Store the actual window object
-                    }
-                )
+            # Convert to list of dictionaries for _find_matching_window
+            windows = []
+            for window in all_windows:
+                if window.title:  # Only include windows with titles
+                    windows.append(
+                        {
+                            "title": window.title,
+                            "window_obj": window,  # Store the actual window object
+                        }
+                    )
 
-        log(f"Found {len(windows)} windows")
-        window = _find_matching_window(windows, title_pattern, use_regex, threshold)
-        window = window["window_obj"] if window else None
+            log(f"Found {len(windows)} windows")
+            window = _find_matching_window(windows, title_pattern, use_regex, threshold)
+            window = window["window_obj"] if window else None
 
-        import ctypes
-        import time
+            import ctypes
+            import time
 
-        def force_activate(window):
-            """Force a window to the foreground on Windows."""
-            try:
-                hwnd = window._hWnd  # pywinctl window handle
+            def force_activate(window):
+                """Force a window to the foreground on Windows."""
+                try:
+                    hwnd = window._hWnd  # pywinctl window handle
 
-                # Restore if minimized
-                if window.isMinimized:
-                    window.restore()
-                    time.sleep(0.1)
+                    # Restore if minimized
+                    if window.isMinimized:
+                        window.restore()
+                        time.sleep(0.1)
 
-                # Bring to top and set foreground
-                ctypes.windll.user32.SetForegroundWindow(hwnd)
-                ctypes.windll.user32.BringWindowToTop(hwnd)
-                window.activate()  # fallback
-                time.sleep(0.3)  # wait for OS to update
+                    # Bring to top and set foreground
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+                    ctypes.windll.user32.BringWindowToTop(hwnd)
+                    window.activate()  # fallback
+                    time.sleep(0.3)  # wait for OS to update
 
-            except Exception as e:
-                print(f"Warning: Could not force window: {e}", file=sys.stderr)
+                except Exception as e:
+                    print(f"Warning: Could not force window: {e}", file=sys.stderr)
 
-        # Take the screenshot
-        if not window:
-            log("No matching window found, taking screenshot of entire screen")
-            screenshot = _mss_screenshot()
-        else:
-            try:
-                # Re-fetch window handle to ensure it's valid
-                window = gw.getWindowsWithTitle(window.title)[0]
-                current_active_window = gw.getActiveWindow()
-                log(f"Taking screenshot of window: {window.title}")
+            # Take the screenshot
+            if not window:
+                log("No matching window found, taking screenshot of entire screen")
+                screenshot = _mss_screenshot()
+            else:
+                try:
+                    # Re-fetch window handle to ensure it's valid
+                    window = gw.getWindowsWithTitle(window.title)[0]
+                    current_active_window = gw.getActiveWindow()
+                    log(f"Taking screenshot of window: {window.title}")
 
-                # Determine if we should use WGC:
-                # 1. If explicitly requested via use_wgc parameter
-                # 2. If the window matches patterns defined in environment variable
-                should_use_wgc = use_wgc or _should_use_wgc_by_default(window.title)
-                
-                # Try WGC capture first if requested or if it's likely a GPU-accelerated window
-                if should_use_wgc and WGC_AVAILABLE:
-                    log("Attempting WGC capture")
-                    wgc_result = _wgc_screenshot(window.title)
-                    if wgc_result:
-                        image_bytes, width, height = wgc_result
-                        screenshot = PILImage.open(BytesIO(image_bytes))
-                        log(f"WGC capture successful: {width}x{height}")
+                    # Determine if we should use WGC:
+                    # 1. If explicitly requested via use_wgc parameter
+                    # 2. If the window matches patterns defined in environment variable
+                    should_use_wgc = use_wgc or _should_use_wgc_by_default(window.title)
+                    
+                    # Try WGC capture first if requested or if it's likely a GPU-accelerated window
+                    if should_use_wgc and WGC_AVAILABLE:
+                        log("Attempting WGC capture")
+                        wgc_result = _wgc_screenshot(window.title)
+                        if wgc_result:
+                            image_bytes, width, height = wgc_result
+                            screenshot = PILImage.open(BytesIO(image_bytes))
+                            log(f"WGC capture successful: {width}x{height}")
+                        else:
+                            log("WGC capture failed, falling back to MSS")
+                            # Fall back to MSS if WGC fails
+                            if sys.platform == "win32":
+                                force_activate(window)
+                            else:
+                                window.activate()
+                            pyautogui.sleep(0.5)  # Give Windows time to focus
+
+                            screen_width, screen_height = pyautogui.size()
+
+                            screenshot = _mss_screenshot(
+                                region=(
+                                    max(window.left, 0),
+                                    max(window.top, 0),
+                                    min(window.width, screen_width),
+                                    min(window.height, screen_height),
+                                )
+                            )
                     else:
-                        log("WGC capture failed, falling back to MSS")
-                        # Fall back to MSS if WGC fails
                         if sys.platform == "win32":
                             force_activate(window)
                         else:
@@ -500,62 +518,96 @@ def take_screenshot(
                                 min(window.height, screen_height),
                             )
                         )
-                else:
-                    if sys.platform == "win32":
-                        force_activate(window)
-                    else:
-                        window.activate()
-                    pyautogui.sleep(0.5)  # Give Windows time to focus
 
-                    screen_width, screen_height = pyautogui.size()
+                    # Restore previously active window
+                    if current_active_window and current_active_window != window:
+                        try:
+                            if sys.platform == "win32":
+                                force_activate(current_active_window)
+                            else:
+                                current_active_window.activate()
+                            pyautogui.sleep(0.2)
+                        except Exception as e:
+                            log(f"Error restoring previous window: {str(e)}")
+                except Exception as e:
+                    log(f"Error taking screenshot of window: {str(e)}")
+                    screenshot = _mss_screenshot()  # fallback to full screen
 
-                    screenshot = _mss_screenshot(
-                        region=(
-                            max(window.left, 0),
-                            max(window.top, 0),
-                            min(window.width, screen_width),
-                            min(window.height, screen_height),
-                        )
-                    )
+            # Create temp directory
+            temp_dir = Path(tempfile.mkdtemp())
 
-                # Restore previously active window
-                if current_active_window and current_active_window != window:
-                    try:
-                        if sys.platform == "win32":
-                            force_activate(current_active_window)
-                        else:
-                            current_active_window.activate()
-                        pyautogui.sleep(0.2)
-                    except Exception as e:
-                        log(f"Error restoring previous window: {str(e)}")
-            except Exception as e:
-                log(f"Error taking screenshot of window: {str(e)}")
-                screenshot = _mss_screenshot()  # fallback to full screen
+            # Save screenshot and get filepath
+            filepath, _ = save_image_to_downloads(
+                screenshot, prefix="screenshot", directory=temp_dir
+            )
 
-        # Create temp directory
-        temp_dir = Path(tempfile.mkdtemp())
+            # Create Image object from filepath
+            image = Image(filepath)
 
-        # Save screenshot and get filepath
-        filepath, _ = save_image_to_downloads(
-            screenshot, prefix="screenshot", directory=temp_dir
-        )
+            if save_to_downloads:
+                log("Copying screenshot from temp to downloads")
+                shutil.copy(filepath, get_downloads_dir())
 
-        # Create Image object from filepath
-        image = Image(filepath)
+            return image  # MCP Image object
+        except Exception as e:
+            log(f"Error in screenshot or getting UI elements: {str(e)}")
+            import traceback
 
-        if save_to_downloads:
-            log("Copying screenshot from temp to downloads")
-            shutil.copy(filepath, get_downloads_dir())
+            stack_trace = traceback.format_exc()
+            log(f"Stack trace:\n{stack_trace}")
+            return f"Error in screenshot or getting UI elements: {str(e)}\nStack trace:\n{stack_trace}"
+        elif sys.platform == "darwin":
+        import subprocess
+        import tempfile
+        import os
+        from pathlib import Path
 
-        return image  # MCP Image object
+        try:
+            # 1. Target a specific window if a pattern is provided
+            # We use AppleScript to find the window and bring it to front
+            if title_pattern:
+                # Simple AppleScript to focus a window containing the string
+                focus_script = f'''
+                tell application "System Events"
+                    set theProcess to first process whose name contains "{title_pattern}"
+                    set frontmost of theProcess to true
+                    tell theProcess
+                        perform action "AXRaise" of window 1
+                    end tell
+                end tell
+                '''
+                try:
+                    subprocess.run(["osascript", "-e", focus_script], capture_output=True)
+                    log(f"Attempted to focus window matching: {title_pattern}")
+                    # Brief sleep to allow window animation to finish
+                    time.sleep(0.5) 
+                except Exception as e:
+                    log(f"Could not focus window: {e}")
 
-    except Exception as e:
-        log(f"Error in screenshot or getting UI elements: {str(e)}")
-        import traceback
+            # 2. Setup paths (Mirroring your Windows logic)
+            temp_dir = Path(tempfile.mkdtemp())
+            screenshot_path = temp_dir / "screenshot.png"
 
-        stack_trace = traceback.format_exc()
-        log(f"Stack trace:\n{stack_trace}")
-        return f"Error in screenshot or getting UI elements: {str(e)}\nStack trace:\n{stack_trace}"
+            # 3. Take the screenshot
+            # -x: silent (no camera sound)
+            # -o: ignore window shadows (cleaner for LLM)
+            # If title_pattern logic above worked, the window is now frontmost
+            subprocess.run(["screencapture", "-x", "-o", str(screenshot_path)], check=True)
+
+            # 4. Return as MCP Image object (to match Windows return type)
+            image = Image(str(screenshot_path))
+
+            # 5. Handle 'save_to_downloads'
+            if save_to_downloads:
+                shutil.copy(screenshot_path, get_downloads_dir())
+
+            return image
+
+        except Exception as e:
+            log(f"Mac Screenshot Error: {str(e)}")
+            return f"Error: {str(e)}"
+
+    
 
 
 def is_low_spec_pc() -> bool:
