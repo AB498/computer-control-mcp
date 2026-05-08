@@ -14,7 +14,7 @@ from io import BytesIO
 import re
 import asyncio
 import uuid
-import datetime
+from datetime import time
 from pathlib import Path
 import tempfile
 from typing import Union
@@ -401,7 +401,7 @@ def take_screenshot(
     threshold: int = 10,
     scale_percent_for_ocr: int = None,
     save_to_downloads: bool = False,
-    use_wgc: bool = False,
+    use_wgc: bool = False
 ) -> Image:
     """
     Get screenshot Image as MCP Image object. If no title pattern is provided, get screenshot of entire screen and all text on the screen.
@@ -413,7 +413,6 @@ def take_screenshot(
         scale_percent_for_ocr: Percentage to scale the image down before processing, you wont need this most of the time unless your pc is extremely old or slow
         save_to_downloads: If True, save the screenshot to the downloads directory and return the absolute path
         use_wgc: If True, use Windows Graphics Capture API for window capture (recommended for GPU-accelerated windows)
-
     Returns:
         Returns a single screenshot as MCP Image object. "content type image not supported" means preview isnt supported but Image object is there and returned successfully.
     """
@@ -556,49 +555,51 @@ def take_screenshot(
             stack_trace = traceback.format_exc()
             log(f"Stack trace:\n{stack_trace}")
             return f"Error in screenshot or getting UI elements: {str(e)}\nStack trace:\n{stack_trace}"
-        elif sys.platform == "darwin":
+    elif sys.platform == "darwin":
         import subprocess
         import tempfile
-        import os
+        import time
         from pathlib import Path
 
         try:
-            # 1. Target a specific window if a pattern is provided
-            # We use AppleScript to find the window and bring it to front
-            if title_pattern:
-                # Simple AppleScript to focus a window containing the string
-                focus_script = f'''
-                tell application "System Events"
-                    set theProcess to first process whose name contains "{title_pattern}"
-                    set frontmost of theProcess to true
-                    tell theProcess
-                        perform action "AXRaise" of window 1
-                    end tell
-                end tell
-                '''
-                try:
-                    subprocess.run(["osascript", "-e", focus_script], capture_output=True)
-                    log(f"Attempted to focus window matching: {title_pattern}")
-                    # Brief sleep to allow window animation to finish
-                    time.sleep(0.5) 
-                except Exception as e:
-                    log(f"Could not focus window: {e}")
-
-            # 2. Setup paths (Mirroring your Windows logic)
             temp_dir = Path(tempfile.mkdtemp())
             screenshot_path = temp_dir / "screenshot.png"
+            
+            if title_pattern:
+                # 1. Focus and Raise the window
+                focus_script = f'''
+                tell application "System Events"
+                    try
+                        set theProcess to first process whose name contains "{title_pattern}"
+                        set frontmost of theProcess to true
+                        tell theProcess
+                            perform action "AXRaise" of window 1
+                        end tell
+                    end try
+                end tell
+                '''
+                subprocess.run(["osascript", "-e", focus_script], capture_output=True)
+                time.sleep(0.5) 
 
-            # 3. Take the screenshot
-            # -x: silent (no camera sound)
-            # -o: ignore window shadows (cleaner for LLM)
-            # If title_pattern logic above worked, the window is now frontmost
-            subprocess.run(["screencapture", "-x", "-o", str(screenshot_path)], check=True)
+            # 2. Get the ID of the frontmost window
+            # We run this even if title_pattern is None to capture whatever is on top
+            id_script = 'tell application "System Events" to get id of window 1 of (first process whose frontmost is true)'
+            result = subprocess.run(["osascript", "-e", id_script], capture_output=True, text=True)
+            window_id = result.stdout.strip()
 
-            # 4. Return as MCP Image object (to match Windows return type)
+            # 3. Take the screenshot using the ID
+            if window_id and window_id.isdigit():
+                # -l captures a specific window ID
+                # -o omits the shadow
+                subprocess.run(["screencapture", "-l", window_id, "-o", str(screenshot_path)], check=True)
+            else:
+                # Fallback to full screen if we couldn't get a window ID
+                subprocess.run(["screencapture", "-x", str(screenshot_path)], check=True)
+
             image = Image(str(screenshot_path))
-
-            # 5. Handle 'save_to_downloads'
+            
             if save_to_downloads:
+                import shutil
                 shutil.copy(screenshot_path, get_downloads_dir())
 
             return image
