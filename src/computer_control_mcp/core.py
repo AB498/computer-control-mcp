@@ -405,7 +405,9 @@ def take_screenshot(
 ) -> Image:
     """
     Get screenshot Image as MCP Image object. If no title pattern is provided, get screenshot of entire screen and all text on the screen.
-
+    Standard tool for visual inspection. Use this BY DEFAULT for any general 
+    questions like 'what is on my screen' or 'show me the window'. 
+    It is much faster than OCR.
     Args:
         title_pattern: Pattern to match window title, if None, take screenshot of entire screen
         use_regex: If True, treat the pattern as a regex, otherwise best match with fuzzy matching
@@ -416,7 +418,7 @@ def take_screenshot(
     Returns:
         Returns a single screenshot as MCP Image object. "content type image not supported" means preview isnt supported but Image object is there and returned successfully.
     """
-    if sys.platform=="wind32":
+    if sys.platform=="win32":
         try:
             all_windows = gw.getAllWindows()
 
@@ -560,10 +562,11 @@ def take_screenshot(
         import tempfile
         import time
         from pathlib import Path
-
+        log("Executing take screenshot tool")
         try:
             temp_dir = Path(tempfile.mkdtemp())
             screenshot_path = temp_dir / "screenshot.png"
+            
             
             if title_pattern:
                 # 1. Focus and Raise the window
@@ -593,16 +596,18 @@ def take_screenshot(
                 # -o omits the shadow
                 subprocess.run(["screencapture", "-l", window_id, "-o", str(screenshot_path)], check=True)
             else:
-                # Fallback to full screen if we couldn't get a window ID
                 subprocess.run(["screencapture", "-x", str(screenshot_path)], check=True)
 
-            image = Image(str(screenshot_path))
             
-            if save_to_downloads:
-                import shutil
-                shutil.copy(screenshot_path, get_downloads_dir())
-
-            return image
+            
+            
+            
+            log("finished executing now, returning sc path")
+            import base64
+            with open(screenshot_path, "rb") as image_file:
+                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+            
+            return base64_image
 
         except Exception as e:
             log(f"Mac Screenshot Error: {str(e)}")
