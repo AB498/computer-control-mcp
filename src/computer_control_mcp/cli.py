@@ -6,11 +6,13 @@ This module provides a command-line interface for interacting with the Computer 
 
 import argparse
 import sys
+from importlib.metadata import version as get_version
 from computer_control_mcp.core import mcp, main as run_server
 
 def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Computer Control MCP CLI")
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {get_version('computer-control-mcp')}")
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
