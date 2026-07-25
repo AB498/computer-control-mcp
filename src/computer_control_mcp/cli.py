@@ -28,9 +28,7 @@ def parse_args():
 
     # Screenshot command
     screenshot_parser = subparsers.add_parser("screenshot", help="Take a screenshot")
-    screenshot_parser.add_argument("--mode", choices=["all_windows", "single_window", "whole_screen"],
-                                  default="whole_screen", help="Screenshot mode")
-    screenshot_parser.add_argument("--title", help="Window title pattern (for single_window mode)")
+    screenshot_parser.add_argument("--title", help="Window title pattern to capture a specific window")
     screenshot_parser.add_argument("--regex", action="store_true", help="Use regex for title matching")
     screenshot_parser.add_argument("--output", help="Output file path (if not provided, saves to downloads directory)")
     screenshot_parser.add_argument("--no-save", action="store_true", help="Don't save images to downloads directory")
@@ -45,73 +43,61 @@ def parse_args():
 
 def main():
     """Main entry point for the CLI."""
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except AttributeError:
+        pass
     args = parse_args()
 
     if args.command == "server":
         run_server()
 
     elif args.command == "click":
-        # Call the tool using the call_tool method
         import asyncio
-        result = asyncio.run(mcp.call_tool("click_screen", {"x": args.x, "y": args.y}))
-        print(result)
+        content, _ = asyncio.run(mcp.call_tool("click_screen", {"x": args.x, "y": args.y}))
+        print(content[0].text)
 
     elif args.command == "type":
-        # Call the tool using the call_tool method
         import asyncio
-        result = asyncio.run(mcp.call_tool("type_text", {"text": args.text}))
-        print(result)
+        content, _ = asyncio.run(mcp.call_tool("type_text", {"text": args.text}))
+        print(content[0].text)
 
     elif args.command == "screenshot":
-        if args.mode == "single_window" and not args.title:
-            print("Error: --title is required for single_window mode")
-            sys.exit(1)
-
-        # Call the tool using the call_tool method
         import asyncio
-        result = asyncio.run(mcp.call_tool("take_screenshot", {
-            "mode": args.mode,
-            "title_pattern": args.title,
+        import base64
+
+        tool_args = {
             "use_regex": args.regex,
             "save_to_downloads": not args.no_save
-        }))
+        }
+        if args.title:
+            tool_args["title_pattern"] = args.title
+
+        result = asyncio.run(mcp.call_tool("take_screenshot", tool_args))
+        content = result[0] if isinstance(result, tuple) else result
 
         if args.output:
-            # Save the screenshot to a specific file path provided by user
+            image_data = base64.b64decode(content[0].data)
             with open(args.output, "wb") as f:
-                f.write(result.image.data)
+                f.write(image_data)
             print(f"Screenshot saved to {args.output}")
-        elif hasattr(result, 'file_path'):
-            # If image was saved to downloads, show the path
-            print(f"Screenshot saved to {result.file_path}")
         else:
             print("Screenshot taken successfully")
 
-        # If we have multiple results (all_windows mode)
-        if args.mode == "all_windows" and isinstance(result, list):
-            print("\nAll screenshots:")
-            for i, item in enumerate(result):
-                if hasattr(item, 'file_path'):
-                    window_title = item.window_info.title if hasattr(item, 'window_info') else f"Window {i+1}"
-                    print(f"{i+1}. {window_title}: {item.file_path}")
-
     elif args.command == "list-windows":
-        # Call the tool using the call_tool method
         import asyncio
-        result = asyncio.run(mcp.call_tool("list_windows", {}))
+        import json
+        content, _ = asyncio.run(mcp.call_tool("list_windows", {}))
 
-        # Parse the result
         windows = []
-        for item in result:
+        for item in content:
             if hasattr(item, 'text'):
                 try:
-                    import json
                     window_info = json.loads(item.text)
                     windows.append(window_info)
                 except json.JSONDecodeError:
                     print(f"Failed to parse window info: {item.text}")
 
-        # Display the windows
         for i, window in enumerate(windows):
             print(f"{i+1}. {window.get('title')} ({window.get('width')}x{window.get('height')})")
 

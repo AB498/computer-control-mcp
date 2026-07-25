@@ -396,10 +396,10 @@ def type_text(text: str) -> str:
 
 @mcp.tool()
 def take_screenshot(
-    title_pattern: str = None,
+    title_pattern: Optional[str] = None,
     use_regex: bool = False,
     threshold: int = 10,
-    scale_percent_for_ocr: int = None,
+    scale_percent_for_ocr: Optional[int] = None,
     save_to_downloads: bool = False,
     use_wgc: bool = False,
 ) -> Image:
@@ -606,10 +606,10 @@ def _safe_format_ocr_results(results: List[Tuple]) -> str:
 
 @mcp.tool()
 def take_screenshot_with_ocr(
-    title_pattern: str = None,
+    title_pattern: Optional[str] = None,
     use_regex: bool = False,
     threshold: int = 10,
-    scale_percent_for_ocr: int = None,
+    scale_percent_for_ocr: Optional[int] = None,
     save_to_downloads: bool = False,
 ) -> str:
     """
