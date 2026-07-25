@@ -127,18 +127,29 @@ When this variable is set, any window whose title contains any of the specified 
 
 ### Keyboard Control
 - `type_text(text: str)`: Type the specified text at current cursor position
-- `press_key(key: str)`: Press a specified keyboard key
 - `key_down(key: str)`: Hold down a specific keyboard key until released
 - `key_up(key: str)`: Release a specific keyboard key
 - `press_keys(keys: Union[str, List[Union[str, List[str]]]])`: Press keyboard keys (supports single keys, sequences, and combinations)
 
 ### Screen and Window Management
-- `take_screenshot(title_pattern: str = None, use_regex: bool = False, threshold: int = 60, scale_percent_for_ocr: int = None, save_to_downloads: bool = False, use_wgc: bool = False)`: Capture screen or window
+- `take_screenshot(title_pattern: str = None, use_regex: bool = False, threshold: int = 10, scale_percent_for_ocr: int = None, save_to_downloads: bool = False, use_wgc: bool = False)`: Capture screen or window
 - `take_screenshot_with_ocr(title_pattern: str = None, use_regex: bool = False, threshold: int = 10, scale_percent_for_ocr: int = None, save_to_downloads: bool = False)`: Extract adn return text with coordinates using OCR from screen or window
 - `get_screen_size()`: Get current screen resolution
 - `list_windows()`: List all open windows
 - `activate_window(title_pattern: str, use_regex: bool = False, threshold: int = 60)`: Bring specified window to foreground
 - `wait_milliseconds(milliseconds: int)`: Wait for a specified number of milliseconds
+
+### Testing MCP Server with `mcp-caller`
+
+You can quickly test the MCP server tools without an MCP client using [mcp-caller](https://www.npmjs.com/package/mcp-caller):
+
+```bash
+# List all available tools
+npx mcp-caller --server-json '{"type":"stdio","command":"uvx","args":["computer-control-mcp@latest","server"]}' --list-tools
+
+# Call a specific tool
+npx mcp-caller --server-json '{"type":"stdio","command":"uvx","args":["computer-control-mcp@latest","server"]}' --tool list_windows --params-json '{}'
+```
 
 ## Development
 
