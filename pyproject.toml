@@ -22,6 +22,12 @@ classifiers = [
 dependencies = [
     "pyautogui==0.9.54",
     "mcp[cli]==1.13.0",
+    # mcp 1.13.0 does `from pydantic._internal._typing_extra import
+    # eval_type_backport`, which pydantic removed in 2.12.0 (moved to
+    # typing_extensions). Without this cap a fresh install resolves pydantic
+    # 2.12+ and the server dies on import with ImportError. Search for
+    # eval_type_backport on every "getting error out of the box" report.
+    "pydantic>=2.11.0,<2.12",
     "pillow==11.3.0",
     "pygetwindow==0.0.9",
     "pywinctl==0.4.1",
