@@ -62,34 +62,30 @@ IS_DEVELOPMENT = os.getenv("ENV") == "development"
 
 
 def log(message: str) -> None:
-    """Log to stderr in dev, to stdout or file in production.
-    
+    """Write a diagnostic message to stderr.
+
+    stderr, never stdout: this server speaks the MCP JSON-RPC protocol over
+    stdout, so any non-protocol text written there corrupts the message stream
+    and breaks the client. This applies in production too, not just in
+    development, so the output destination must not depend on IS_DEVELOPMENT.
+
     Handles Unicode encoding errors gracefully to prevent crashes
     when printing special characters on Windows terminals.
     """
+    prefix = "[DEV]" if IS_DEVELOPMENT else "[PROD]"
     try:
-        if IS_DEVELOPMENT:
-            # In dev, write to stderr
-            print(f"[DEV] {message}", file=sys.stderr)
-        else:
-            # In production, write to stdout or a file
-            print(f"[PROD] {message}", file=sys.stdout)
-            # or append to a file: open("app.log", "a").write(message+"\n")
+        print(f"{prefix} {message}", file=sys.stderr)
     except UnicodeEncodeError:
         # Handle encoding errors by escaping or replacing problematic characters
         safe_message = message.encode('utf-8', errors='replace').decode('utf-8')
-        if IS_DEVELOPMENT:
-            print(f"[DEV] {safe_message}", file=sys.stderr)
-        else:
-            print(f"[PROD] {safe_message}", file=sys.stdout)
+        try:
+            print(f"{prefix} {safe_message}", file=sys.stderr)
+        except Exception:
+            pass
     except Exception:
         # Fallback for any other printing errors
         try:
-            safe_message = repr(message)  # Use repr to escape special characters
-            if IS_DEVELOPMENT:
-                print(f"[DEV] {safe_message}", file=sys.stderr)
-            else:
-                print(f"[PROD] {safe_message}", file=sys.stdout)
+            print(f"{prefix} {repr(message)}", file=sys.stderr)
         except Exception:
             # Last resort - if even repr fails, don't crash
             pass
@@ -341,10 +337,21 @@ def _find_matching_window(
     # Extract all window titles
     window_titles = [window["title"] for window in windows]
 
+    # Nothing to compare against: fuzzywuzzy's extractOne returns None for an
+    # empty choice list, which previously blew up on the tuple unpack below.
+    if not window_titles:
+        log("No candidate windows to match against, returning None")
+        return None
+
     # Use process.extractOne to find the best match
-    best_match_title, score = process.extractOne(
+    best_match = process.extractOne(
         title_pattern, window_titles, scorer=fuzz.partial_ratio
     )
+    if not best_match:
+        log(f"No fuzzy match found for pattern: {title_pattern}")
+        return None
+
+    best_match_title, score = best_match
     log(f"Best fuzzy match: '{best_match_title}' with score {score}")
 
     # Only return if the score is above the threshold
@@ -970,8 +977,23 @@ def activate_window(
         # Get the actual window object
         matched_window = matched_window_dict["window_obj"]
 
-        # Activate the window
-        matched_window.activate()
+        # Activate the window. pywinctl's activate() returns whether the window
+        # is the active one afterwards; wait=True makes it poll briefly for that
+        # to become true instead of sampling before the activation lands.
+        try:
+            activated = matched_window.activate(wait=True)
+        except TypeError:
+            # Other backends (e.g. pygetwindow) do not accept a wait argument.
+            activated = matched_window.activate()
+
+        # Only report failure when the backend explicitly said False. Backends
+        # that return None give us no verdict, so we cannot claim a failure.
+        if activated is False:
+            log(f"Activation not confirmed for window: '{matched_window.title}'")
+            return (
+                f"Error: Could not activate window: '{matched_window.title}'. "
+                "It may have closed or refused focus."
+            )
 
         return f"Successfully activated window: '{matched_window.title}'"
     except Exception as e:
