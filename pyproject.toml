@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "computer-control-mcp"
-version = "0.3.13"
+version = "0.3.14"
 description = "MCP server that provides computer control capabilities, like mouse, keyboard, OCR, etc. using PyAutoGUI, RapidOCR, ONNXRuntime. Similar to 'computer-use' by Anthropic. With Zero External Dependencies."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "AB498", email = "abcd49800@gmail.com"}]
 classifiers = [
