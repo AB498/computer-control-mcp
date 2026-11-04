@@ -118,6 +118,26 @@ When this variable is set, any window whose title contains any of the specified 
 
 ## Available Tools
 
+### Batch & Sequence Execution
+- `execute_actions(actions: List[Dict[str, Any]], fail_fast: bool = True, failsafe: Optional[bool] = None)`: Execute a batch/sequence of operations in a single tool call without LLM round-trip delays. Ideal for smooth mouse movement / curves, multi-step macros, and complex workflows.
+
+Supported actions:
+- `move` / `move_mouse`: `{"type": "move", "x": 500, "y": 300, "duration": 0.0}`
+- `move_rel`: `{"type": "move_rel", "x_offset": 50, "y_offset": -20}`
+- `curve` / `move_curve`: `{"type": "curve", "points": [[x1, y1], [x2, y2], ...], "interval_ms": 5}`
+- `click` / `click_screen`: `{"type": "click", "x": 500, "y": 300, "button": "left", "clicks": 1}`
+- `double_click`: `{"type": "double_click", "x": 500, "y": 300}`
+- `right_click`: `{"type": "right_click", "x": 500, "y": 300}`
+- `mouse_down` / `mouse_up`: `{"type": "mouse_down", "button": "left"}`
+- `drag` / `drag_mouse`: `{"type": "drag", "from_x": 100, "from_y": 100, "to_x": 400, "to_y": 400}`
+- `scroll`: `{"type": "scroll", "clicks": -5}`
+- `type` / `type_text`: `{"type": "type", "text": "Hello world"}`
+- `press` / `press_keys`: `{"type": "press", "keys": "enter"}` or `{"type": "press", "keys": ["ctrl", "c"]}`
+- `hotkey`: `{"type": "hotkey", "keys": ["ctrl", "shift", "p"]}`
+- `key_down` / `key_up`: `{"type": "key_down", "key": "shift"}`
+- `wait` / `sleep`: `{"type": "wait", "milliseconds": 250}` or `{"type": "wait", "seconds": 0.5}`
+- `activate_window`: `{"type": "activate_window", "title_pattern": "Chrome"}`
+
 ### Mouse Control
 - `click_screen(x: int, y: int)`: Click at specified screen coordinates
 - `move_mouse(x: int, y: int)`: Move mouse cursor to specified coordinates

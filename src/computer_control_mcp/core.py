@@ -60,6 +60,19 @@ except ImportError:
 # Determine mode automatically
 IS_DEVELOPMENT = os.getenv("ENV") == "development"
 
+def ensure_interactive_desktop() -> None:
+    """Ensure the current thread is attached to the interactive desktop ('Default') on Windows."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            h_desk = user32.OpenDesktopW("Default", 0, False, 0x01FF)
+            if h_desk:
+                user32.SetThreadDesktop(h_desk)
+        except Exception as e:
+            log(f"Warning: could not switch to Default desktop: {e}")
+
+
 
 def log(message: str) -> None:
     """Write a diagnostic message to stderr.
@@ -757,10 +770,26 @@ def take_screenshot_with_ocr(
 
 
 @mcp.tool()
-def move_mouse(x: int, y: int) -> str:
-    """Move the mouse to the specified screen coordinates."""
+def move_mouse(
+    x: int,
+    y: int,
+    smooth: bool = True,
+    duration: float = 0.25,
+) -> str:
+    """
+    Move the mouse to the specified screen coordinates.
+
+    Args:
+        x: Target X screen coordinate
+        y: Target Y screen coordinate
+        smooth: If True, smoothly glide the cursor; if False, move instantly (default: True)
+        duration: Duration of movement in seconds (default: 0.25 when smooth=True, 0.0 when False)
+    """
+    ensure_interactive_desktop()
     try:
-        pyautogui.moveTo(x=x, y=y)
+        actual_duration = duration if smooth else 0.0
+        tween = pyautogui.easeInOutQuad if smooth else pyautogui.linear
+        pyautogui.moveTo(x=x, y=y, duration=actual_duration, tween=tween)
         return f"Successfully moved mouse to coordinates ({x}, {y})"
     except Exception as e:
         return f"Error moving mouse to coordinates ({x}, {y}): {str(e)}"
@@ -999,6 +1028,284 @@ def activate_window(
     except Exception as e:
         log(f"Error activating window: {str(e)}")
         return f"Error activating window: {str(e)}"
+
+
+
+@mcp.tool()
+async def execute_actions(
+    actions: List[Dict[str, Any]],
+    fail_fast: bool = True,
+    failsafe: Optional[bool] = None,
+) -> Dict[str, Any]:
+    ensure_interactive_desktop()
+    """
+    Execute a batch/sequence of computer control actions in a single tool call.
+    Ideal for fluid curves, multi-step macros, gestures, and reducing round-trip latency.
+
+    Supported action types (via 'type' or 'action'):
+    - "move" / "move_mouse": {"type": "move", "x": int, "y": int, "duration": float (optional)}
+    - "move_rel": {"type": "move_rel", "x_offset": int, "y_offset": int, "duration": float (optional)}
+    - "curve" / "move_curve": {"type": "curve", "points": [[x, y], ...], "interval_ms": int (optional, default 5)}
+    - "click" / "click_screen": {"type": "click", "x": int (optional), "y": int (optional), "button": "left"|"right"|"middle", "clicks": int (default 1), "interval": float (default 0.0)}
+    - "double_click": {"type": "double_click", "x": int (optional), "y": int (optional), "button": "left"}
+    - "right_click": {"type": "right_click", "x": int (optional), "y": int (optional)}
+    - "mouse_down": {"type": "mouse_down", "button": "left"|"right"|"middle"}
+    - "mouse_up": {"type": "mouse_up", "button": "left"|"right"|"middle"}
+    - "drag" / "drag_mouse": {"type": "drag", "from_x": int (optional), "from_y": int (optional), "to_x": int, "to_y": int, "duration": float (default 0.5), "button": "left"}
+    - "scroll": {"type": "scroll", "clicks": int, "x": int (optional), "y": int (optional)}
+    - "type" / "type_text": {"type": "type", "text": str, "interval": float (default 0.0)}
+    - "press" / "press_keys": {"type": "press", "keys": str | list}
+    - "hotkey": {"type": "hotkey", "keys": list[str]}
+    - "key_down": {"type": "key_down", "key": str}
+    - "key_up": {"type": "key_up", "key": str}
+    - "wait" / "sleep": {"type": "wait", "milliseconds": int (optional), "seconds": float (optional)}
+    - "activate_window": {"type": "activate_window", "title_pattern": str, "use_regex": bool, "threshold": int}
+
+    Args:
+        actions: Sequential list of action objects to execute.
+        fail_fast: If True (default), stops on first failed action. If False, continues executing remaining actions.
+        failsafe: Optional bool to override pyautogui.FAILSAFE during execution.
+
+    Returns:
+        A dictionary with 'success', 'executed_count', 'total_actions', and 'results' containing per-action status.
+    """
+    old_failsafe = pyautogui.FAILSAFE
+    if failsafe is not None:
+        pyautogui.FAILSAFE = failsafe
+
+    try:
+        results: List[Dict[str, Any]] = []
+        executed_count = 0
+
+        for idx, act in enumerate(actions):
+            if not isinstance(act, dict):
+                err = f"Action at index {idx} must be a dictionary, got {type(act).__name__}"
+                results.append({"index": idx, "success": False, "error": err})
+                if fail_fast:
+                    return {
+                        "success": False,
+                        "executed_count": executed_count,
+                        "total_actions": len(actions),
+                        "results": results,
+                    }
+                continue
+
+            raw_action = act.get("type") or act.get("action")
+            if not raw_action:
+                err = f"Action at index {idx} missing 'type' or 'action' field"
+                results.append({"index": idx, "success": False, "error": err})
+                if fail_fast:
+                    return {
+                        "success": False,
+                        "executed_count": executed_count,
+                        "total_actions": len(actions),
+                        "results": results,
+                    }
+                continue
+
+            action_name = str(raw_action).strip().lower()
+
+            try:
+                if action_name in ("move", "move_mouse", "move_to"):
+                    x = int(act["x"])
+                    y = int(act["y"])
+                    smooth = bool(act.get("smooth", True))
+                    if "duration" in act:
+                        duration = float(act["duration"])
+                    else:
+                        duration = 0.25 if smooth else 0.0
+                    tween = pyautogui.easeInOutQuad if smooth else pyautogui.linear
+                    pyautogui.moveTo(x=x, y=y, duration=duration, tween=tween)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Moved to ({x}, {y})"})
+
+                elif action_name in ("move_rel", "move_relative"):
+                    x_offset = int(act.get("x_offset", act.get("dx", 0)))
+                    y_offset = int(act.get("y_offset", act.get("dy", 0)))
+                    duration = float(act.get("duration", 0.0))
+                    pyautogui.moveRel(xOffset=x_offset, yOffset=y_offset, duration=duration)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Moved relative by ({x_offset}, {y_offset})"})
+
+                elif action_name in ("curve", "move_curve", "path"):
+                    points = act.get("points", [])
+                    interval_ms = act.get("interval_ms")
+                    if interval_ms is not None:
+                        delay = max(0.0, float(interval_ms) / 1000.0)
+                    else:
+                        delay = float(act.get("interval", act.get("delay", 0.005)))
+
+                    count_pts = 0
+                    for pt in points:
+                        if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                            px, py = int(pt[0]), int(pt[1])
+                        elif isinstance(pt, dict) and "x" in pt and "y" in pt:
+                            px, py = int(pt["x"]), int(pt["y"])
+                        else:
+                            continue
+                        pyautogui.moveTo(px, py)
+                        count_pts += 1
+                        if delay > 0:
+                            await asyncio.sleep(delay)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Followed curve with {count_pts} points"})
+
+                elif action_name in ("click", "click_screen"):
+                    x = act.get("x")
+                    y = act.get("y")
+                    button = str(act.get("button", "left")).lower()
+                    clicks = int(act.get("clicks", 1))
+                    interval = float(act.get("interval", 0.0))
+                    if x is not None and y is not None:
+                        pyautogui.click(x=int(x), y=int(y), clicks=clicks, interval=interval, button=button)
+                    else:
+                        pyautogui.click(clicks=clicks, interval=interval, button=button)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Clicked ({button}, {clicks}x)"})
+
+                elif action_name in ("double_click", "doubleclick"):
+                    x = act.get("x")
+                    y = act.get("y")
+                    button = str(act.get("button", "left")).lower()
+                    if x is not None and y is not None:
+                        pyautogui.doubleClick(x=int(x), y=int(y), button=button)
+                    else:
+                        pyautogui.doubleClick(button=button)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": "Double-clicked"})
+
+                elif action_name in ("right_click", "rightclick"):
+                    x = act.get("x")
+                    y = act.get("y")
+                    if x is not None and y is not None:
+                        pyautogui.rightClick(x=int(x), y=int(y))
+                    else:
+                        pyautogui.rightClick()
+                    results.append({"index": idx, "action": action_name, "success": True, "details": "Right-clicked"})
+
+                elif action_name in ("mouse_down", "mousedown", "down"):
+                    button = str(act.get("button", "left")).lower()
+                    pyautogui.mouseDown(button=button)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Mouse down ({button})"})
+
+                elif action_name in ("mouse_up", "mouseup", "up"):
+                    button = str(act.get("button", "left")).lower()
+                    pyautogui.mouseUp(button=button)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Mouse up ({button})"})
+
+                elif action_name in ("drag", "drag_mouse", "drag_to"):
+                    from_x = act.get("from_x")
+                    from_y = act.get("from_y")
+                    to_x = int(act.get("to_x", act.get("x", 0)))
+                    to_y = int(act.get("to_y", act.get("y", 0)))
+                    duration = float(act.get("duration", 0.5))
+                    button = str(act.get("button", "left")).lower()
+                    if from_x is not None and from_y is not None:
+                        pyautogui.moveTo(x=int(from_x), y=int(from_y))
+                    await asyncio.to_thread(pyautogui.dragTo, x=to_x, y=to_y, duration=duration, button=button)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Dragged to ({to_x}, {to_y})"})
+
+                elif action_name in ("scroll",):
+                    clicks = int(act.get("clicks", act.get("amount", act.get("delta_y", 0))))
+                    x = act.get("x")
+                    y = act.get("y")
+                    if x is not None and y is not None:
+                        pyautogui.scroll(clicks, x=int(x), y=int(y))
+                    else:
+                        pyautogui.scroll(clicks)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Scrolled {clicks} clicks"})
+
+                elif action_name in ("type", "type_text", "write"):
+                    text = str(act.get("text", ""))
+                    interval = float(act.get("interval", 0.0))
+                    pyautogui.typewrite(text, interval=interval)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Typed text ({len(text)} chars)"})
+
+                elif action_name in ("press", "press_keys", "key_press"):
+                    keys = act.get("keys", act.get("key"))
+                    if isinstance(keys, str):
+                        pyautogui.press(keys)
+                    elif isinstance(keys, list):
+                        for item in keys:
+                            if isinstance(item, str):
+                                pyautogui.press(item)
+                            elif isinstance(item, list):
+                                pyautogui.hotkey(*item)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Pressed keys: {keys}"})
+
+                elif action_name in ("hotkey",):
+                    keys = act.get("keys", act.get("key", []))
+                    if isinstance(keys, list):
+                        pyautogui.hotkey(*keys)
+                    elif isinstance(keys, str):
+                        pyautogui.hotkey(keys)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Triggered hotkey: {keys}"})
+
+                elif action_name in ("key_down", "keydown"):
+                    key = str(act.get("key", ""))
+                    pyautogui.keyDown(key)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Key down: {key}"})
+
+                elif action_name in ("key_up", "keyup"):
+                    key = str(act.get("key", ""))
+                    pyautogui.keyUp(key)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Key up: {key}"})
+
+                elif action_name in ("wait", "sleep", "wait_milliseconds", "delay"):
+                    ms = act.get("milliseconds", act.get("ms"))
+                    if ms is not None:
+                        wait_secs = max(0.0, float(ms) / 1000.0)
+                    else:
+                        wait_secs = max(0.0, float(act.get("seconds", act.get("duration", 0.0))))
+                    if wait_secs > 0:
+                        await asyncio.sleep(wait_secs)
+                    results.append({"index": idx, "action": action_name, "success": True, "details": f"Waited {wait_secs}s"})
+
+                elif action_name in ("activate_window",):
+                    title_pattern = str(act.get("title_pattern", act.get("title", "")))
+                    use_regex = bool(act.get("use_regex", False))
+                    threshold = int(act.get("threshold", 60))
+                    res = activate_window(title_pattern=title_pattern, use_regex=use_regex, threshold=threshold)
+                    is_err = "Error:" in res
+                    results.append({"index": idx, "action": action_name, "success": not is_err, "details": res})
+                    if is_err and fail_fast:
+                        return {
+                            "success": False,
+                            "executed_count": executed_count,
+                            "total_actions": len(actions),
+                            "results": results,
+                        }
+
+                else:
+                    err = f"Unknown action type: '{action_name}'"
+                    results.append({"index": idx, "action": action_name, "success": False, "error": err})
+                    if fail_fast:
+                        return {
+                            "success": False,
+                            "executed_count": executed_count,
+                            "total_actions": len(actions),
+                            "results": results,
+                        }
+
+                executed_count += 1
+
+            except Exception as e:
+                err = f"Error executing '{action_name}' at index {idx}: {str(e)}"
+                log(err)
+                results.append({"index": idx, "action": action_name, "success": False, "error": err})
+                if fail_fast:
+                    return {
+                        "success": False,
+                        "executed_count": executed_count,
+                        "total_actions": len(actions),
+                        "results": results,
+                    }
+
+        all_success = all(r.get("success", False) for r in results)
+        return {
+            "success": all_success,
+            "executed_count": executed_count,
+            "total_actions": len(actions),
+            "results": results,
+        }
+    finally:
+        pyautogui.FAILSAFE = old_failsafe
+
 
 
 def main():

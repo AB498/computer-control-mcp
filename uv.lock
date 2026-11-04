@@ -263,7 +263,7 @@ wheels = [
 
 [[package]]
 name = "computer-control-mcp"
-version = "0.3.13"
+version = "0.3.15"
 source = { editable = "." }
 dependencies = [
     { name = "fuzzywuzzy" },
