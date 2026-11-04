@@ -1037,7 +1037,6 @@ async def execute_actions(
     fail_fast: bool = True,
     failsafe: Optional[bool] = None,
 ) -> Dict[str, Any]:
-    ensure_interactive_desktop()
     """
     Execute a batch/sequence of computer control actions in a single tool call.
     Ideal for fluid curves, multi-step macros, gestures, and reducing round-trip latency.
@@ -1069,6 +1068,7 @@ async def execute_actions(
     Returns:
         A dictionary with 'success', 'executed_count', 'total_actions', and 'results' containing per-action status.
     """
+    ensure_interactive_desktop()
     old_failsafe = pyautogui.FAILSAFE
     if failsafe is not None:
         pyautogui.FAILSAFE = failsafe
