@@ -51,6 +51,7 @@ computer-control-mcp # instead of uvx computer-control-mcp, so you can use the l
 - Press keyboard keys
 - Drag and drop operations
 - Enhanced screenshot capture for GPU-accelerated windows (Windows only)
+- Click-through green activity border with a live action prompt while the AI operates the computer
 
 ## Note on GPU-accelerated Windows
 
@@ -86,6 +87,27 @@ export COMPUTER_CONTROL_MCP_SCREENSHOT_DIR="/home/yourname/Pictures/Screenshots"
 ```
 
 If the specified directory doesn't exist, the server will fall back to the default downloads directory.
+
+### Activity Overlay
+
+On Windows, every mouse, keyboard, window-activation, screenshot, OCR, and batch action displays a click-through green screen border and a status card such as `AI 正在操作电脑` / `点击屏幕`. The overlay does not take focus or intercept mouse input, and it is temporarily hidden while screenshots are captured so it does not affect screenshot or OCR results.
+
+The overlay is enabled by default. Disable it with:
+
+```json
+{
+  "mcpServers": {
+    "computer-control-mcp": {
+      "command": "computer-control-mcp",
+      "env": {
+        "COMPUTER_CONTROL_MCP_OVERLAY": "0"
+      }
+    }
+  }
+}
+```
+
+You can customize the main title with `COMPUTER_CONTROL_MCP_OVERLAY_TEXT`.
 
 ### Automatic WGC for Specific Windows
 
