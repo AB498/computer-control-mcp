@@ -387,41 +387,41 @@ def _find_matching_window(
 def _overlay_action_hint(action_name: str, action: Dict[str, Any]) -> str:
     """Describe a batch action without exposing typed text or key contents."""
     if action_name in ("move", "move_mouse", "move_to"):
-        return f"移动鼠标至 ({action.get('x')}, {action.get('y')})"
+        return f"Move mouse to ({action.get('x')}, {action.get('y')})"
     if action_name in ("move_rel", "move_relative"):
-        return "移动鼠标"
+        return "Move mouse"
     if action_name in ("curve", "move_curve", "path"):
         points = action.get("points", [])
-        return f"沿路径移动鼠标（{len(points) if isinstance(points, list) else 0} 个点）"
+        return f"Move mouse along path ({len(points) if isinstance(points, list) else 0} points)"
     if action_name in ("click", "click_screen"):
         if action.get("x") is not None and action.get("y") is not None:
-            return f"点击屏幕 ({action.get('x')}, {action.get('y')})"
-        return "点击鼠标"
+            return f"Click screen ({action.get('x')}, {action.get('y')})"
+        return "Click mouse"
     if action_name in ("double_click", "doubleclick"):
-        return "双击鼠标"
+        return "Double-click mouse"
     if action_name in ("right_click", "rightclick"):
-        return "右键点击"
+        return "Right-click"
     if action_name in ("mouse_down", "mousedown", "down"):
-        return "按住鼠标"
+        return "Hold mouse button"
     if action_name in ("mouse_up", "mouseup", "up"):
-        return "松开鼠标"
+        return "Release mouse button"
     if action_name in ("drag", "drag_mouse", "drag_to"):
-        return f"拖动至 ({action.get('to_x', action.get('x'))}, {action.get('to_y', action.get('y'))})"
+        return f"Drag to ({action.get('to_x', action.get('x'))}, {action.get('to_y', action.get('y'))})"
     if action_name == "scroll":
-        return f"滚动 {action.get('clicks', action.get('amount', 0))} 格"
+        return f"Scroll {action.get('clicks', action.get('amount', 0))} clicks"
     if action_name in ("type", "type_text", "write"):
-        return f"输入文字（{len(str(action.get('text', '')))} 个字符）"
+        return f"Type text ({len(str(action.get('text', '')))} chars)"
     if action_name in ("press", "press_keys", "key_press", "hotkey"):
-        return "发送键盘按键"
+        return "Press keys"
     if action_name in ("key_down", "keydown"):
-        return "按住键盘按键"
+        return "Hold key"
     if action_name in ("key_up", "keyup"):
-        return "松开键盘按键"
+        return "Release key"
     if action_name in ("wait", "sleep", "wait_milliseconds", "delay"):
-        return "等待页面响应"
+        return "Waiting"
     if action_name == "activate_window":
-        return f"激活窗口：{action.get('title_pattern', action.get('title', ''))}"
-    return f"执行动作：{action_name}"
+        return f"Activate window: {action.get('title_pattern', action.get('title', ''))}"
+    return f"Execute action: {action_name}"
 
 
 # --- MCP Function Handlers ---
@@ -431,7 +431,7 @@ def _overlay_action_hint(action_name: str, action: Dict[str, Any]) -> str:
 def click_screen(x: int, y: int) -> str:
     """Click at the specified screen coordinates."""
     try:
-        with ai_activity("点击屏幕", f"坐标 ({x}, {y})"):
+        with ai_activity("Click screen", f"Coords ({x}, {y})"):
             pyautogui.click(x=x, y=y)
         return f"Successfully clicked at coordinates ({x}, {y})"
     except Exception as e:
@@ -456,7 +456,7 @@ def get_screen_size() -> Dict[str, Any]:
 def type_text(text: str) -> str:
     """Type the specified text at the current cursor position."""
     try:
-        with ai_activity("输入文字", f"{len(text)} 个字符"):
+        with ai_activity("Type text", f"{len(text)} chars"):
             pyautogui.typewrite(text)
         return f"Successfully typed text: {text}"
     except Exception as e:
@@ -486,7 +486,7 @@ def take_screenshot(
     Returns:
         Returns a single screenshot as MCP Image object. "content type image not supported" means preview isnt supported but Image object is there and returned successfully.
     """
-    activity = begin_ai_activity("截取屏幕", "正在准备无提示层的干净截图")
+    activity = begin_ai_activity("Take screenshot", "Preparing clean screenshot without overlay")
     try:
         all_windows = gw.getAllWindows()
 
@@ -622,7 +622,7 @@ def take_screenshot(
             log("Copying screenshot from temp to downloads")
             shutil.copy(filepath, get_downloads_dir())
 
-        activity.update("截图完成", "屏幕画面已返回给 AI")
+        activity.update("Screenshot captured", "Screen image returned to AI")
         return image  # MCP Image object
 
     except Exception as e:
@@ -703,7 +703,7 @@ def take_screenshot_with_ocr(
     Returns:
         Returns a list of UI elements as List[Tuple[List[List[int]], str, float]] where each tuple is [[4 corners of box], text, confidence], "content type image not supported" means preview isnt supported but Image object is there.
     """
-    activity = begin_ai_activity("识别屏幕文字", "正在准备无提示层的干净截图")
+    activity = begin_ai_activity("Recognize screen text", "Preparing clean screenshot without overlay")
     try:
         all_windows = gw.getAllWindows()
 
@@ -758,7 +758,7 @@ def take_screenshot_with_ocr(
                 log(f"Error taking screenshot of window: {str(e)}")
                 return f"Error taking screenshot of window: {str(e)}"
 
-        activity.update("识别屏幕文字", "OCR 正在处理画面")
+        activity.update("Recognize screen text", "OCR is processing the screen")
 
         # Create temp directory
         temp_dir = Path(tempfile.mkdtemp())
@@ -822,7 +822,7 @@ def take_screenshot_with_ocr(
         log(f"Found {len(zipped_results)} text items in OCR result.")
         # Use safe formatting for OCR results to prevent Unicode encoding errors
         log(f"First 5 items: {_safe_format_ocr_results(zipped_results[:5])}")
-        activity.update("识别完成", f"找到 {len(zipped_results)} 个文字区域")
+        activity.update("OCR complete", f"Found {len(zipped_results)} text regions")
         return (
             ",\n".join([str(item) for item in zipped_results])
             if zipped_results
@@ -860,7 +860,7 @@ def move_mouse(
     try:
         actual_duration = duration if smooth else 0.0
         tween = pyautogui.easeInOutQuad if smooth else pyautogui.linear
-        with ai_activity("移动鼠标", f"坐标 ({x}, {y})"):
+        with ai_activity("Move mouse", f"Coords ({x}, {y})"):
             pyautogui.moveTo(x=x, y=y, duration=actual_duration, tween=tween)
         return f"Successfully moved mouse to coordinates ({x}, {y})"
     except Exception as e:
@@ -871,7 +871,7 @@ def move_mouse(
 def mouse_down(button: str = "left") -> str:
     """Hold down a mouse button ('left', 'right', 'middle')."""
     try:
-        with ai_activity("按住鼠标", f"{button} 键"):
+        with ai_activity("Hold mouse button", f"{button} button"):
             pyautogui.mouseDown(button=button)
         return f"Held down {button} mouse button"
     except Exception as e:
@@ -882,7 +882,7 @@ def mouse_down(button: str = "left") -> str:
 def mouse_up(button: str = "left") -> str:
     """Release a mouse button ('left', 'right', 'middle')."""
     try:
-        with ai_activity("松开鼠标", f"{button} 键"):
+        with ai_activity("Release mouse button", f"{button} button"):
             pyautogui.mouseUp(button=button)
         return f"Released {button} mouse button"
     except Exception as e:
@@ -908,7 +908,7 @@ async def drag_mouse(
     """
     try:
         with ai_activity(
-            "拖动鼠标", f"({from_x}, {from_y}) → ({to_x}, {to_y})"
+            "Drag mouse", f"({from_x}, {from_y}) → ({to_x}, {to_y})"
         ):
             # First move to the starting position
             pyautogui.moveTo(x=from_x, y=from_y)
@@ -931,7 +931,7 @@ from typing import Union, List
 def key_down(key: str) -> str:
     """Hold down a specific keyboard key until released."""
     try:
-        with ai_activity("按住键盘按键", "AI 正在保持按键"):
+        with ai_activity("Hold key", "AI is holding a key"):
             pyautogui.keyDown(key)
         return f"Held down key: {key}"
     except Exception as e:
@@ -942,7 +942,7 @@ def key_down(key: str) -> str:
 def key_up(key: str) -> str:
     """Release a specific keyboard key."""
     try:
-        with ai_activity("松开键盘按键", "AI 正在释放按键"):
+        with ai_activity("Release key", "AI is releasing a key"):
             pyautogui.keyUp(key)
         return f"Released key: {key}"
     except Exception as e:
@@ -966,7 +966,7 @@ def press_keys(keys: Union[str, List[Union[str, List[str]]]]) -> str:
         press_keys([["ctrl", "c"], ["alt", "tab"]])
     """
     try:
-        with ai_activity("发送键盘按键", "AI 正在操作当前窗口"):
+        with ai_activity("Press keys", "AI is interacting with the active window"):
             if isinstance(keys, str):
                 # Single key
                 pyautogui.press(keys)
@@ -1040,7 +1040,7 @@ def wait_milliseconds(milliseconds: int) -> str:
     try:
         import time
         seconds = milliseconds / 1000.0
-        with ai_activity("等待页面响应", f"{milliseconds} 毫秒"):
+        with ai_activity("Waiting", f"{milliseconds} ms"):
             time.sleep(seconds)
         return f"Successfully waited for {milliseconds} milliseconds"
     except Exception as e:
@@ -1063,7 +1063,7 @@ def activate_window(
         Success or error message
     """
     try:
-        with ai_activity("激活窗口", title_pattern):
+        with ai_activity("Activate window", title_pattern):
             # Get all windows
             all_windows = gw.getAllWindows()
 
@@ -1154,7 +1154,7 @@ async def execute_actions(
     """
     ensure_interactive_desktop()
     activity = begin_ai_activity(
-        "执行自动化操作", f"共 {len(actions)} 个动作"
+        "Execute actions", f"{len(actions)} actions total"
     )
     old_failsafe = pyautogui.FAILSAFE
     if failsafe is not None:
@@ -1192,7 +1192,7 @@ async def execute_actions(
 
             action_name = str(raw_action).strip().lower()
             activity.update(
-                "AI 正在操作电脑",
+                "AI is controlling the computer",
                 f"{idx + 1}/{len(actions)} · {_overlay_action_hint(action_name, act)}",
             )
 

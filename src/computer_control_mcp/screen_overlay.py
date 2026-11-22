@@ -187,7 +187,7 @@ class _OverlayWindow(threading.Thread):
         ).pack(fill="x")
         self.title_label = tk.Label(
             card,
-            text=os.getenv(_TEXT_ENV, "AI 正在操作电脑"),
+            text=os.getenv(_TEXT_ENV, "AI is controlling the computer"),
             bg=_PANEL_BG,
             fg=_TEXT,
             font=action_font,
@@ -216,7 +216,8 @@ class _OverlayWindow(threading.Thread):
         self.detail_label.pack(fill="x")
 
         self.window.update_idletasks()
-        self.hwnd = self.window.winfo_id()
+        child_hwnd = self.window.winfo_id()
+        self.hwnd = user32.GetParent(child_hwnd) or child_hwnd
         self._make_click_through()
 
     def _make_click_through(self) -> None:
