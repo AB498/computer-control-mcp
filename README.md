@@ -90,7 +90,7 @@ If the specified directory doesn't exist, the server will fall back to the defau
 
 ### Activity Overlay
 
-On Windows, every mouse, keyboard, window-activation, screenshot, OCR, and batch action displays a click-through green screen border and a status card such as `AI 正在操作电脑` / `点击屏幕`. The overlay does not take focus or intercept mouse input, and it is temporarily hidden while screenshots are captured so it does not affect screenshot or OCR results.
+On Windows, every mouse, keyboard, window-activation, screenshot, OCR, and batch action displays a click-through green screen border and a status card such as `AI is controlling the computer` / `Click screen`. The overlay does not take focus or intercept mouse input, and it is temporarily hidden while screenshots are captured so it does not affect screenshot or OCR results.
 
 The overlay is enabled by default. Disable it with:
 
